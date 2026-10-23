@@ -94,6 +94,23 @@ test('effect cleans up before rerun and on stop', async () => {
   assert.deepEqual(calls, ['run 0', 'cleanup 0', 'run 1', 'cleanup 1']);
 });
 
+test('onUnmount runs once after component effects stop', () => {
+  const { effect, onUnmount, createElement: h, component, mount, document } = setup();
+  const calls = [];
+  const stop = mount(component(() => {
+    effect(() => {
+      calls.push('effect');
+      return () => calls.push('effect cleanup');
+    });
+    onUnmount(() => calls.push('unmount'));
+    return h('div');
+  }), document.createElement('root'));
+
+  stop();
+  stop();
+  assert.deepEqual(calls, ['effect', 'effect cleanup', 'unmount']);
+});
+
 test('conditional branch and list replace DOM and dispose refs', async () => {
   const { signal, ref, createElement: h, component, mount, document } = setup();
   const visible = signal(true);

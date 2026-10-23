@@ -104,6 +104,19 @@
     }
   }
 
+  function onUnmount(cleanup) {
+    if (typeof cleanup !== "function") {
+      throw new TypeError("onUnmount expects a function");
+    }
+    if (!activeScope || !activeScope.active) {
+      throw new Error("onUnmount must be called inside a component or scope");
+    }
+    if (activeEffect) {
+      throw new Error("Use an effect return value for cleanup on each rerun");
+    }
+    activeScope.cleanups.add(cleanup);
+  }
+
   // ---------- Effects ----------
 
   function effect(fn, owner = activeScope, onRerender) {
@@ -686,6 +699,7 @@
     each,
     signal,
     effect,
+    onUnmount,
     scope,
     createElement,
     html,
