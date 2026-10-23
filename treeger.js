@@ -302,6 +302,7 @@
 
     // Возвращаем функцию, а не VDOM-объект.
     return factory(() => {
+      const instanceOwner = owner?.active ? owner : activeScope;
       const el = document.createElement(tag);
 
       // Один независимый эффект для props элемента.
@@ -310,7 +311,7 @@
           if (key.startsWith("on") || key === "ref") continue;
           setProp(el, key, resolve(raw));
         }
-      }, owner, () => flash(el));
+      }, instanceOwner, () => flash(el));
 
       if (props.ref != null) {
         const callback = typeof props.ref === "function"
@@ -320,7 +321,7 @@
           throw new TypeError("ref prop must be a callback or a Treegger ref");
         }
         callback(el);
-        owner?.cleanups.add(() => callback(null, el));
+        instanceOwner?.cleanups.add(() => callback(null, el));
       }
 
       // События не нужно переподписывать при обновлении.
@@ -334,7 +335,7 @@
       }
 
       for (const child of children) {
-        appendChild(el, child, owner);
+        appendChild(el, child, instanceOwner);
       }
 
       return el;
@@ -414,7 +415,7 @@
 
     return factory(() => {
       const previous = activeScope;
-      activeScope = parent;
+      activeScope = parent?.active ? parent : previous;
 
       try {
         const instance = scope(() => {
@@ -445,11 +446,13 @@
   // ---------- Mount ----------
 
   function mount(tree, target) {
-    const node = isFactory(tree) ? tree() : tree;
+    const instance = scope(() => isFactory(tree) ? tree() : tree);
+    const node = instance.value;
 
     target.append(node);
 
     return () => {
+      instance.owner.dispose();
       disposers.get(node)?.();
       node.remove();
     };
