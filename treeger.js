@@ -186,68 +186,6 @@
   // ---------- Element factories ----------
 
   const FACTORY = Symbol("treegger.factory");
-  const REF = Symbol("treegger.ref");
-
-  function ref() {
-    let node = null;
-    let boundMethods = new WeakMap();
-    const binding = {
-      [REF](next, expected) {
-        if (!expected || node === expected) {
-          node = next;
-          boundMethods = new WeakMap();
-        }
-      }
-    };
-
-    return new Proxy(binding, {
-      get(target, key) {
-        if (key === REF) return target[REF];
-        if (!node) {
-          throw new Error("Treegger ref is not attached to an element");
-        }
-
-        const value = Reflect.get(node, key);
-        if (typeof value !== "function") return value;
-        if (!boundMethods.has(value)) boundMethods.set(value, value.bind(node));
-        return boundMethods.get(value);
-      },
-
-      set(target, key, value) {
-        if (!node) {
-          throw new Error("Treegger ref is not attached to an element");
-        }
-        return Reflect.set(node, key, value);
-      },
-
-      has(target, key) {
-        return key === REF || (node != null && key in node);
-      },
-
-      ownKeys(target) {
-        return node ? [...new Set([...Reflect.ownKeys(target), ...Reflect.ownKeys(node)])] : Reflect.ownKeys(target);
-      },
-
-      getOwnPropertyDescriptor(target, key) {
-        if (key === REF) return Reflect.getOwnPropertyDescriptor(target, key);
-        if (!node) return undefined;
-        const descriptor = Reflect.getOwnPropertyDescriptor(node, key);
-        return descriptor && { ...descriptor, configurable: true };
-      },
-
-      getPrototypeOf(target) {
-        return node ? Reflect.getPrototypeOf(node) : Reflect.getPrototypeOf(target);
-      },
-
-      deleteProperty(target, key) {
-        return node != null && Reflect.deleteProperty(node, key);
-      },
-
-      defineProperty(target, key, descriptor) {
-        return node != null && Reflect.defineProperty(node, key, descriptor);
-      }
-    });
-  }
 
   function factory(fn) {
     fn[FACTORY] = true;
@@ -261,7 +199,6 @@
   function isSignal(value) {
     return value &&
       typeof value === "object" &&
-      !(REF in value) &&
       "value" in value;
   }
 
@@ -364,11 +301,11 @@
       }, owner, () => flash(el));
 
       if (props.ref != null) {
-        if (!props.ref[REF]) {
-          throw new TypeError("ref prop must be created with Treegger.ref()");
+        if (typeof props.ref !== "function") {
+          throw new TypeError("ref prop must be a callback");
         }
-        props.ref[REF](el);
-        owner?.cleanups.add(() => props.ref[REF](null, el));
+        props.ref(el);
+        owner?.cleanups.add(() => props.ref(null));
       }
 
       // События не нужно переподписывать при обновлении.
@@ -507,7 +444,6 @@
 
   window.Treegger = {
     debug,
-    ref,
     signal,
     effect,
     scope,
