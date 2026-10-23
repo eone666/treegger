@@ -186,6 +186,35 @@
   // ---------- Element factories ----------
 
   const FACTORY = Symbol("treegger.factory");
+  const REF = Symbol("treegger.ref");
+
+  function ref() {
+    const state = { current: null, [REF]: true };
+
+    return new Proxy(state, {
+      get(target, key) {
+        if (key in target) return target[key];
+        if (!target.current) {
+          throw new Error("Treegger ref is not attached to an element");
+        }
+
+        const value = target.current[key];
+        return typeof value === "function" ? value.bind(target.current) : value;
+      },
+
+      set(target, key, value) {
+        if (key === "current") {
+          target.current = value;
+          return true;
+        }
+        if (!target.current) {
+          throw new Error("Treegger ref is not attached to an element");
+        }
+        target.current[key] = value;
+        return true;
+      }
+    });
+  }
 
   function factory(fn) {
     fn[FACTORY] = true;
@@ -295,10 +324,20 @@
       // Один независимый эффект для props элемента.
       effect(() => {
         for (const [key, raw] of Object.entries(props)) {
-          if (key.startsWith("on")) continue;
+          if (key.startsWith("on") || key === "ref") continue;
           setProp(el, key, resolve(raw));
         }
       }, owner, () => flash(el));
+
+      if (props.ref != null) {
+        if (!props.ref[REF]) {
+          throw new TypeError("ref prop must be created with Treegger.ref()");
+        }
+        props.ref.current = el;
+        owner?.cleanups.add(() => {
+          if (props.ref.current === el) props.ref.current = null;
+        });
+      }
 
       // События не нужно переподписывать при обновлении.
       for (const [key, handler] of Object.entries(props)) {
@@ -436,6 +475,7 @@
 
   window.Treegger = {
     debug,
+    ref,
     signal,
     effect,
     scope,

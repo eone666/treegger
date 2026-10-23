@@ -1,5 +1,5 @@
 (() => {
-  const { signal, html, component, mount, debug } = window.Treegger;
+  const { signal, ref, html, component, mount, debug } = window.Treegger;
   debug.showRerenders = true;
 
   function Counter({ title, initial = 0 }) {
@@ -25,10 +25,13 @@
 
   function App() {
     console.log("App initialized ONCE");
+    const inputRef = ref();
 
     return html`
       <main style="max-width: 500px; margin: 40px auto; font-family: sans-serif">
         <h1>Treegger 🌳</h1>
+        <input ref=${inputRef} placeholder="Focus me">
+        <button onclick=${() => inputRef.focus()}>Focus input</button>
         ${component(Counter, { title: "Counter A", initial: 0 })}
         ${component(Counter, { title: "Counter B", initial: 10 })}
       </main>
