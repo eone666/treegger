@@ -187,6 +187,18 @@
 
   const FACTORY = Symbol("treegger.factory");
 
+  function ref() {
+    const reference = { element: null };
+    Object.defineProperty(reference, "refCallback", {
+      value(element, previous) {
+        if (!previous || reference.element === previous) {
+          reference.element = element;
+        }
+      }
+    });
+    return reference;
+  }
+
   function factory(fn) {
     fn[FACTORY] = true;
     return fn;
@@ -301,11 +313,14 @@
       }, owner, () => flash(el));
 
       if (props.ref != null) {
-        if (typeof props.ref !== "function") {
-          throw new TypeError("ref prop must be a callback");
+        const callback = typeof props.ref === "function"
+          ? props.ref
+          : props.ref.refCallback;
+        if (typeof callback !== "function") {
+          throw new TypeError("ref prop must be a callback or a Treegger ref");
         }
-        props.ref(el);
-        owner?.cleanups.add(() => props.ref(null));
+        callback(el);
+        owner?.cleanups.add(() => callback(null, el));
       }
 
       // События не нужно переподписывать при обновлении.
@@ -444,6 +459,7 @@
 
   window.Treegger = {
     debug,
+    ref,
     signal,
     effect,
     scope,

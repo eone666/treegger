@@ -1,5 +1,5 @@
 (() => {
-  const { signal, effect, html, component, mount, debug } = window.Treegger;
+  const { signal, ref, html, component, mount, debug } = window.Treegger;
   debug.showRerenders = true;
 
   function Counter({ title, initial = 0 }) {
@@ -25,18 +25,13 @@
 
   function App() {
     console.log("App initialized ONCE");
-    const input = signal(null);
-    const inputRef = node => { input.value = node; };
-
-    effect(() => {
-      if (input.value) input.value.placeholder = "Focus me";
-    });
+    const inputRef = ref();
 
     return html`
       <main style="max-width: 500px; margin: 40px auto; font-family: sans-serif">
         <h1>Treegger 🌳</h1>
-        <input ref=${inputRef}>
-        <button onclick=${() => input.value?.focus()}>Focus input</button>
+        <input ref=${inputRef} placeholder="Focus me">
+        <button onclick=${() => inputRef.element?.focus()}>Focus input</button>
         ${component(Counter, { title: "Counter A", initial: 0 })}
         ${component(Counter, { title: "Counter B", initial: 10 })}
       </main>
