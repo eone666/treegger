@@ -1,5 +1,5 @@
-(() => {
-  const { signal, ref, each, html, component, mount, debug } = window.Treegger;
+import { signal, ref, each, html, component, mount, debug } from "./treegger.js";
+
   debug.showRerenders = true;
 
   function Counter({ title, initial = 0 }) {
@@ -58,4 +58,3 @@
   } else {
     start();
   }
-})();

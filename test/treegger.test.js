@@ -1,7 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as Treegger from '../treegger.js';
 
 class MockNode {
   static TEXT_NODE = 3;
@@ -71,9 +70,9 @@ function setup() {
     createComment: data => new MockNode(8, '', data),
     createDocumentFragment: () => new MockNode(11)
   };
-  const context = { window: {}, document, Node: MockNode, queueMicrotask };
-  vm.runInNewContext(fs.readFileSync('treegger.js', 'utf8'), context);
-  return { ...context.window.Treegger, document };
+  globalThis.document = document;
+  globalThis.Node = MockNode;
+  return { ...Treegger, document };
 }
 
 const nextFlush = () => new Promise(resolve => setImmediate(resolve));

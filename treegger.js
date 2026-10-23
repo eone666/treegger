@@ -3,7 +3,6 @@
    TREEGGER — single-file reactive prototype
    ========================================= */
 
-(() => {
   let activeEffect = null;
   let activeScope = null;
 
@@ -693,7 +692,7 @@
 
   // ---------- Public API ----------
 
-  window.Treegger = {
+  export {
     debug,
     ref,
     each,
@@ -709,5 +708,3 @@
     component,
     mount
   };
-
-})();
