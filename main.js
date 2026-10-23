@@ -26,12 +26,17 @@
   function App() {
     console.log("App initialized ONCE");
     const inputRef = ref();
+    const items = signal(["First", "Second"]);
+    const showItems = signal(true);
 
     return html`
       <main style="max-width: 500px; margin: 40px auto; font-family: sans-serif">
         <h1>Treegger 🌳</h1>
         <input ref=${inputRef} placeholder="Focus me">
         <button onclick=${() => inputRef.element?.focus()}>Focus input</button>
+        <button onclick=${() => { items.value = [...items.value, `Item ${items.value.length + 1}`]; }}>Add item</button>
+        <button onclick=${() => { showItems.value = !showItems.value; }}>Toggle list</button>
+        <ul>${() => showItems.value && items.value.map(item => html`<li>${item}</li>`)}</ul>
         ${component(Counter, { title: "Counter A", initial: 0 })}
         ${component(Counter, { title: "Counter B", initial: 10 })}
       </main>

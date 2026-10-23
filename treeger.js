@@ -108,9 +108,16 @@
       active: true,
       deps: new Set(),
       hasRun: false,
+      cleanup: null,
 
       run() {
         if (!job.active) return;
+
+        if (job.cleanup) {
+          const cleanup = job.cleanup;
+          job.cleanup = null;
+          cleanup();
+        }
 
         for (const dep of job.deps) {
           dep.delete(job);
@@ -125,7 +132,8 @@
         activeScope = owner;
 
         try {
-          fn();
+          const cleanup = fn();
+          job.cleanup = typeof cleanup === "function" ? cleanup : null;
           if (job.hasRun) onRerender?.();
           job.hasRun = true;
         } finally {
@@ -146,6 +154,12 @@
 
         job.deps.clear();
         owner?.effects.delete(job);
+
+        if (job.cleanup) {
+          const cleanup = job.cleanup;
+          job.cleanup = null;
+          cleanup();
+        }
       }
     };
 
@@ -220,6 +234,16 @@
     return value;
   }
 
+  function untrack(fn) {
+    const previous = activeEffect;
+    activeEffect = null;
+    try {
+      return fn();
+    } finally {
+      activeEffect = previous;
+    }
+  }
+
   // ---------- DOM helpers ----------
 
   function setProp(el, key, value) {
@@ -274,13 +298,24 @@
     }
 
     if (typeof child === "function" || isSignal(child)) {
-      const text = document.createTextNode("");
+      const marker = document.createComment("treegger");
+      parent.append(marker);
 
       effect(() => {
-        text.data = String(resolve(child) ?? "");
-      }, owner, () => flash(text));
+        const rendered = scope(() => {
+          const value = resolve(child);
+          const fragment = document.createDocumentFragment();
+          untrack(() => appendChild(fragment, value, activeScope));
+          return { fragment, nodes: [...fragment.childNodes] };
+        });
 
-      parent.append(text);
+        marker.parentNode.insertBefore(rendered.value.fragment, marker);
+
+        return () => {
+          rendered.owner.dispose();
+          for (const node of rendered.value.nodes) node.remove();
+        };
+      }, owner, () => flash(marker.previousSibling || marker.parentElement));
       return;
     }
 
@@ -327,10 +362,9 @@
       // События не нужно переподписывать при обновлении.
       for (const [key, handler] of Object.entries(props)) {
         if (key.startsWith("on") && typeof handler === "function") {
-          el.addEventListener(
-            key.slice(2).toLowerCase(),
-            handler
-          );
+          const event = key.slice(2).toLowerCase();
+          el.addEventListener(event, handler);
+          instanceOwner?.cleanups.add(() => el.removeEventListener(event, handler));
         }
       }
 
