@@ -211,3 +211,28 @@ test('keyed list preserves rows on append and reorder', async () => {
   assert.equal(renderCalls, 3);
   stop();
 });
+
+test('nullable list shows fallback and clears its ref when items appear', async () => {
+  const { signal, ref, each, createElement: h, mount, document } = setup();
+  const items = signal(null);
+  const fallbackRef = ref();
+  const target = document.createElement('root');
+  const stop = mount(h('ul', {}, each(
+    items,
+    item => h('li', { key: item.id }, item.label),
+    { fallback: () => h('li', { ref: fallbackRef }, 'Empty') }
+  )), target);
+  const rows = () => target.childNodes[0].childNodes.filter(node => node.name === 'li');
+
+  assert.equal(rows()[0], fallbackRef.element);
+  items.value = [{ id: 1, label: 'A' }];
+  await nextFlush();
+  assert.equal(fallbackRef.element, null);
+  assert.equal(rows()[0].childNodes[0].data, 'A');
+
+  items.value = [];
+  await nextFlush();
+  assert.equal(rows()[0], fallbackRef.element);
+  stop();
+  assert.equal(fallbackRef.element, null);
+});

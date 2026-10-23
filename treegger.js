@@ -206,11 +206,11 @@
   const EACH = Symbol("treegger.each");
   const KEY = Symbol("treegger.key");
 
-  function each(source, render) {
+  function each(source, render, { fallback = null } = {}) {
     if (typeof render !== "function") {
       throw new TypeError("each(source, render) expects a render function");
     }
-    return { [EACH]: true, source, render };
+    return { [EACH]: true, source, render, fallback };
   }
 
   function ref() {
@@ -367,18 +367,43 @@
     const marker = document.createComment("treegger-list");
     parent.append(marker);
     let records = new Map();
+    let fallbackRecord = null;
+
+    function disposeRecord(record) {
+      record.owner.dispose();
+      for (const node of record.nodes) node.remove();
+    }
 
     owner?.cleanups.add(() => {
-      for (const record of records.values()) {
-        record.owner.dispose();
-        for (const node of record.nodes) node.remove();
-      }
+      for (const record of records.values()) disposeRecord(record);
       records.clear();
+      if (fallbackRecord) disposeRecord(fallbackRecord);
+      fallbackRecord = null;
     });
 
     effect(() => {
-      const items = resolve(list.source);
+      const items = resolve(list.source) ?? [];
       if (!Array.isArray(items)) throw new TypeError("each source must resolve to an array");
+
+      if (items.length === 0) {
+        for (const record of records.values()) disposeRecord(record);
+        records.clear();
+        if (list.fallback != null && !fallbackRecord) {
+          const rendered = scope(() => {
+            const fragment = document.createDocumentFragment();
+            untrack(() => appendChild(fragment, list.fallback, activeScope));
+            return { fragment, nodes: [...fragment.childNodes] };
+          });
+          marker.parentNode.insertBefore(rendered.value.fragment, marker);
+          fallbackRecord = { owner: rendered.owner, nodes: rendered.value.nodes };
+        }
+        return;
+      }
+
+      if (fallbackRecord) {
+        disposeRecord(fallbackRecord);
+        fallbackRecord = null;
+      }
 
       const byItem = new Map([...records.values()].map(record => [record.item, record]));
       const next = new Map();
@@ -407,7 +432,7 @@
           }
 
           if (next.has(record.key)) {
-            if (!byItem.has(item)) record.owner.dispose();
+            if (!byItem.has(item)) disposeRecord(record);
             throw new Error("each keys must be unique");
           }
           next.set(record.key, record);
@@ -415,15 +440,14 @@
         }
       } catch (error) {
         for (const record of next.values()) {
-          if (records.get(record.key) !== record) record.owner.dispose();
+          if (records.get(record.key) !== record) disposeRecord(record);
         }
         throw error;
       }
 
       for (const [key, record] of records) {
         if (next.get(key) === record) continue;
-        record.owner.dispose();
-        for (const node of record.nodes) node.remove();
+        disposeRecord(record);
       }
 
       let before = marker;
@@ -452,7 +476,7 @@
 
     // Возвращаем функцию, а не VDOM-объект.
     const tree = factory(() => {
-      const instanceOwner = owner?.active ? owner : activeScope;
+      const instanceOwner = activeScope?.active ? activeScope : owner;
       const el = document.createElement(tag);
 
       // Один независимый эффект для props элемента.
@@ -507,14 +531,55 @@
   const jsxs = jsx;
   const jsxDEV = jsx;
 
+  function expandComponentTags(markup, values) {
+    let result = "";
+    for (let index = 0; index < markup.length;) {
+      if (markup[index] !== "<" || !/[A-Za-z]/.test(markup[index + 1] ?? "")) {
+        result += markup[index++];
+        continue;
+      }
+
+      let end = index + 1;
+      let quote = null;
+      for (; end < markup.length; end++) {
+        const char = markup[end];
+        if (quote) {
+          if (char === quote) quote = null;
+        } else if (char === '"' || char === "'") {
+          quote = char;
+        } else if (char === ">") {
+          break;
+        }
+      }
+
+      const tag = markup.slice(index, end + 1);
+      const name = /^<([A-Za-z][\w:-]*)/.exec(tag)?.[1];
+      const componentSlot = /^treegger-slot-(\d+)-end$/.exec(name ?? "");
+      if (name && /^[A-Z]/.test(name)) {
+        throw new Error(`Use <\${${name}}> to pass a component to html`);
+      }
+      if (componentSlot && typeof values[Number(componentSlot[1])] !== "function") {
+        throw new TypeError("html component tag must contain a function");
+      }
+      if (componentSlot && /\/\s*>$/.test(tag)) {
+        result += tag.replace(/\/\s*>$/, ">") + `</${name}>`;
+      } else {
+        result += tag;
+      }
+      index = end + 1;
+    }
+    return result;
+  }
+
   function html(strings, ...values) {
     const marker = index => `treegger-slot-${index}-end`;
     const slots = /treegger-slot-(\d+)-end/g;
     const template = document.createElement("template");
-    template.innerHTML = strings.reduce(
+    const markup = strings.reduce(
       (result, part, index) => result + part + (index < values.length ? marker(index) : ""),
       ""
     );
+    template.innerHTML = expandComponentTags(markup, values);
 
     function parts(source) {
       const result = [];
@@ -542,11 +607,11 @@
           : () => pieces.map(piece => String(resolve(piece) ?? "")).join("");
       }
 
-      return createElement(
-        node.localName,
-        props,
-        ...Array.from(node.childNodes).flatMap(convert)
-      );
+      const children = Array.from(node.childNodes).flatMap(convert);
+      const componentSlot = /^treegger-slot-(\d+)-end$/.exec(node.localName);
+      return componentSlot
+        ? component(values[Number(componentSlot[1])], { ...props, children })
+        : createElement(node.localName, props, ...children);
     }
 
     const roots = Array.from(template.content.childNodes)
@@ -567,7 +632,7 @@
 
     const tree = factory(() => {
       const previous = activeScope;
-      activeScope = parent?.active ? parent : previous;
+      activeScope = previous?.active ? previous : parent;
 
       try {
         const instance = scope(() => {

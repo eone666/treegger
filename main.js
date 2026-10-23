@@ -26,7 +26,7 @@
   function App() {
     console.log("App initialized ONCE");
     const inputRef = ref();
-    const items = signal(["First", "Second"]);
+    const items = signal(null);
     const showItems = signal(true);
 
     return html`
@@ -34,14 +34,15 @@
         <h1>Treegger 🌳</h1>
         <input ref=${inputRef} placeholder="Focus me">
         <button onclick=${() => inputRef.element?.focus()}>Focus input</button>
-        <button onclick=${() => { items.value = [...items.value, `Item ${items.value.length + 1}`]; }}>Add item</button>
+        <button onclick=${() => { items.value = [...(items.value ?? []), `Item ${(items.value?.length ?? 0) + 1}`]; }}>Add item</button>
         <button onclick=${() => { showItems.value = !showItems.value; }}>Toggle list</button>
         <ul>${each(
-          () => showItems.value ? items.value : [],
-          item => html`<li key=${item}>${item}</li>`
+          () => showItems.value ? items.value : null,
+          item => html`<li key=${item}>${item}</li>`,
+          { fallback: () => html`<li>No items</li>` }
         )}</ul>
-        ${component(Counter, { title: "Counter A", initial: 0 })}
-        ${component(Counter, { title: "Counter B", initial: 10 })}
+        <${Counter} title="Counter A" initial=${0}/>
+        <${Counter} title="Counter B" initial=${10}/>
       </main>
     `;
   }
