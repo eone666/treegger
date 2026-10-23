@@ -1,5 +1,5 @@
 (() => {
-  const { signal, ref, html, component, mount, debug } = window.Treegger;
+  const { signal, ref, each, html, component, mount, debug } = window.Treegger;
   debug.showRerenders = true;
 
   function Counter({ title, initial = 0 }) {
@@ -36,7 +36,11 @@
         <button onclick=${() => inputRef.element?.focus()}>Focus input</button>
         <button onclick=${() => { items.value = [...items.value, `Item ${items.value.length + 1}`]; }}>Add item</button>
         <button onclick=${() => { showItems.value = !showItems.value; }}>Toggle list</button>
-        <ul>${() => showItems.value && items.value.map(item => html`<li>${item}</li>`)}</ul>
+        <ul>${each(
+          () => showItems.value ? items.value : [],
+          item => item,
+          item => html`<li>${item}</li>`
+        )}</ul>
         ${component(Counter, { title: "Counter A", initial: 0 })}
         ${component(Counter, { title: "Counter B", initial: 10 })}
       </main>

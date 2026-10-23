@@ -200,6 +200,14 @@
   // ---------- Element factories ----------
 
   const FACTORY = Symbol("treegger.factory");
+  const EACH = Symbol("treegger.each");
+
+  function each(source, key, render) {
+    if (typeof key !== "function" || typeof render !== "function") {
+      throw new TypeError("each(source, key, render) expects key and render functions");
+    }
+    return { [EACH]: true, source, key, render };
+  }
 
   function ref() {
     const reference = { element: null };
@@ -280,6 +288,11 @@
   }
 
   function appendChild(parent, child, owner) {
+    if (child && child[EACH]) {
+      appendList(parent, child, owner);
+      return;
+    }
+
     if (Array.isArray(child)) {
       for (const item of child) {
         appendChild(parent, item, owner);
@@ -300,15 +313,35 @@
     if (typeof child === "function" || isSignal(child)) {
       const marker = document.createComment("treegger");
       parent.append(marker);
+      let textNode = null;
+      owner?.cleanups.add(() => textNode?.remove());
 
       effect(() => {
         const rendered = scope(() => {
           const value = resolve(child);
+          if (value == null || typeof value === "boolean" ||
+              typeof value === "string" || typeof value === "number" ||
+              typeof value === "bigint") {
+            return { text: value == null || typeof value === "boolean" ? "" : String(value) };
+          }
           const fragment = document.createDocumentFragment();
           untrack(() => appendChild(fragment, value, activeScope));
           return { fragment, nodes: [...fragment.childNodes] };
         });
 
+        if ("text" in rendered.value) {
+          if (textNode) {
+            textNode.data = rendered.value.text;
+          } else {
+            textNode = document.createTextNode(rendered.value.text);
+            marker.parentNode.insertBefore(textNode, marker);
+          }
+          rendered.owner.dispose();
+          return;
+        }
+
+        textNode?.remove();
+        textNode = null;
         marker.parentNode.insertBefore(rendered.value.fragment, marker);
 
         return () => {
@@ -324,6 +357,67 @@
     }
 
     parent.append(document.createTextNode(String(child)));
+  }
+
+  function appendList(parent, list, owner) {
+    const marker = document.createComment("treegger-list");
+    parent.append(marker);
+    let records = new Map();
+
+    owner?.cleanups.add(() => {
+      for (const record of records.values()) {
+        record.owner.dispose();
+        for (const node of record.nodes) node.remove();
+      }
+      records.clear();
+    });
+
+    effect(() => {
+      const items = resolve(list.source);
+      if (!Array.isArray(items)) throw new TypeError("each source must resolve to an array");
+
+      const keys = items.map(list.key);
+      if (new Set(keys).size !== keys.length) {
+        throw new Error("each keys must be unique");
+      }
+
+      const next = new Map();
+      items.forEach((item, index) => {
+        const key = keys[index];
+        const old = records.get(key);
+        if (old && Object.is(old.item, item)) {
+          next.set(key, old);
+          return;
+        }
+
+        const rendered = scope(() => {
+          const fragment = document.createDocumentFragment();
+          untrack(() => appendChild(fragment, list.render(item), activeScope));
+          fragment.append(document.createComment("treegger-item"));
+          return { fragment, nodes: [...fragment.childNodes] };
+        });
+        next.set(key, { item, owner: rendered.owner, nodes: rendered.value.nodes });
+      });
+
+      for (const [key, record] of records) {
+        if (next.get(key) === record) continue;
+        record.owner.dispose();
+        for (const node of record.nodes) node.remove();
+      }
+
+      let before = marker;
+      for (let index = keys.length - 1; index >= 0; index--) {
+        const record = next.get(keys[index]);
+        if (record.nodes.at(-1).nextSibling !== before) {
+          const fragment = document.createDocumentFragment();
+          for (const node of record.nodes) fragment.append(node);
+          marker.parentNode.insertBefore(fragment, before);
+        }
+        before = record.nodes[0];
+      }
+
+      records = next;
+    }, owner, () => flash(marker.parentElement));
   }
 
   // ---------- createElement ----------
@@ -497,6 +591,7 @@
   window.Treegger = {
     debug,
     ref,
+    each,
     signal,
     effect,
     scope,

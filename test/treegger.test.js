@@ -25,6 +25,10 @@ class MockNode {
     return this.parentNode?.childNodes[this.parentNode.childNodes.indexOf(this) - 1] ?? null;
   }
 
+  get nextSibling() {
+    return this.parentNode?.childNodes[this.parentNode.childNodes.indexOf(this) + 1] ?? null;
+  }
+
   append(...nodes) {
     for (const node of nodes) this.insertBefore(node, null);
   }
@@ -67,7 +71,7 @@ function setup() {
     createDocumentFragment: () => new MockNode(11)
   };
   const context = { window: {}, document, Node: MockNode, queueMicrotask };
-  vm.runInNewContext(fs.readFileSync('treeger.js', 'utf8'), context);
+  vm.runInNewContext(fs.readFileSync('treegger.js', 'utf8'), context);
   return { ...context.window.Treegger, document };
 }
 
@@ -153,5 +157,48 @@ test('removed branch releases event listeners', async () => {
   visible.value = false;
   await nextFlush();
   assert.equal(button.listeners.has('click'), false);
+  stop();
+});
+
+test('reactive text updates the same text node', async () => {
+  const { signal, createElement: h, mount, document } = setup();
+  const count = signal(1);
+  const target = document.createElement('root');
+  const stop = mount(h('p', {}, () => `Count: ${count.value}`), target);
+  const text = target.childNodes[0].childNodes[0];
+
+  count.value = 2;
+  await nextFlush();
+  assert.equal(target.childNodes[0].childNodes[0], text);
+  assert.equal(text.data, 'Count: 2');
+  stop();
+});
+
+test('keyed list preserves rows on append and reorder', async () => {
+  const { signal, each, createElement: h, mount, document } = setup();
+  const first = { id: 1, label: 'A' };
+  const second = { id: 2, label: 'B' };
+  const items = signal([first]);
+  const target = document.createElement('root');
+  const stop = mount(h('ul', {}, each(items, item => item.id, item => h('li', {}, item.label))), target);
+  const list = target.childNodes[0];
+  const rows = () => list.childNodes.filter(node => node.name === 'li');
+  const original = rows()[0];
+
+  items.value = [first, second];
+  await nextFlush();
+  assert.equal(rows()[0], original);
+  const added = rows()[1];
+
+  items.value = [second, first];
+  await nextFlush();
+  assert.equal(rows()[0], added);
+  assert.equal(rows()[1], original);
+
+  items.value = [second, { id: 1, label: 'Updated' }];
+  await nextFlush();
+  assert.equal(rows()[0], added);
+  assert.notEqual(rows()[1], original);
+  assert.equal(rows()[1].childNodes[0].data, 'Updated');
   stop();
 });
