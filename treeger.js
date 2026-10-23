@@ -189,28 +189,29 @@
   const REF = Symbol("treegger.ref");
 
   function ref() {
-    const state = { current: null, [REF]: true };
+    let node = null;
+    const binding = {
+      [REF](next, expected) {
+        if (!expected || node === expected) node = next;
+      }
+    };
 
-    return new Proxy(state, {
+    return new Proxy(binding, {
       get(target, key) {
-        if (key in target) return target[key];
-        if (!target.current) {
+        if (key === REF) return target[REF];
+        if (!node) {
           throw new Error("Treegger ref is not attached to an element");
         }
 
-        const value = target.current[key];
-        return typeof value === "function" ? value.bind(target.current) : value;
+        const value = node[key];
+        return typeof value === "function" ? value.bind(node) : value;
       },
 
       set(target, key, value) {
-        if (key === "current") {
-          target.current = value;
-          return true;
-        }
-        if (!target.current) {
+        if (!node) {
           throw new Error("Treegger ref is not attached to an element");
         }
-        target.current[key] = value;
+        node[key] = value;
         return true;
       }
     });
@@ -333,10 +334,8 @@
         if (!props.ref[REF]) {
           throw new TypeError("ref prop must be created with Treegger.ref()");
         }
-        props.ref.current = el;
-        owner?.cleanups.add(() => {
-          if (props.ref.current === el) props.ref.current = null;
-        });
+        props.ref[REF](el);
+        owner?.cleanups.add(() => props.ref[REF](null, el));
       }
 
       // События не нужно переподписывать при обновлении.
