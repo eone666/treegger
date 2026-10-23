@@ -96,6 +96,9 @@
 
     try {
       return { value: fn(), owner };
+    } catch (error) {
+      owner.dispose();
+      throw error;
     } finally {
       activeScope = parent;
     }
@@ -201,12 +204,13 @@
 
   const FACTORY = Symbol("treegger.factory");
   const EACH = Symbol("treegger.each");
+  const KEY = Symbol("treegger.key");
 
-  function each(source, key, render) {
-    if (typeof key !== "function" || typeof render !== "function") {
-      throw new TypeError("each(source, key, render) expects key and render functions");
+  function each(source, render) {
+    if (typeof render !== "function") {
+      throw new TypeError("each(source, render) expects a render function");
     }
-    return { [EACH]: true, source, key, render };
+    return { [EACH]: true, source, render };
   }
 
   function ref() {
@@ -376,28 +380,45 @@
       const items = resolve(list.source);
       if (!Array.isArray(items)) throw new TypeError("each source must resolve to an array");
 
-      const keys = items.map(list.key);
-      if (new Set(keys).size !== keys.length) {
-        throw new Error("each keys must be unique");
-      }
-
+      const byItem = new Map([...records.values()].map(record => [record.item, record]));
       const next = new Map();
-      items.forEach((item, index) => {
-        const key = keys[index];
-        const old = records.get(key);
-        if (old && Object.is(old.item, item)) {
-          next.set(key, old);
-          return;
-        }
+      const keys = [];
 
-        const rendered = scope(() => {
-          const fragment = document.createDocumentFragment();
-          untrack(() => appendChild(fragment, list.render(item), activeScope));
-          fragment.append(document.createComment("treegger-item"));
-          return { fragment, nodes: [...fragment.childNodes] };
-        });
-        next.set(key, { item, owner: rendered.owner, nodes: rendered.value.nodes });
-      });
+      try {
+        for (const item of items) {
+          let record = byItem.get(item);
+          if (!record) {
+            const rendered = scope(() => {
+              const tree = untrack(() => list.render(item));
+              if (!isFactory(tree) || tree[KEY] == null) {
+                throw new Error("each items must return an element with a key prop");
+              }
+              const fragment = document.createDocumentFragment();
+              untrack(() => appendChild(fragment, tree, activeScope));
+              fragment.append(document.createComment("treegger-item"));
+              return { key: tree[KEY], nodes: [...fragment.childNodes] };
+            });
+            record = {
+              item,
+              key: rendered.value.key,
+              owner: rendered.owner,
+              nodes: rendered.value.nodes
+            };
+          }
+
+          if (next.has(record.key)) {
+            if (!byItem.has(item)) record.owner.dispose();
+            throw new Error("each keys must be unique");
+          }
+          next.set(record.key, record);
+          keys.push(record.key);
+        }
+      } catch (error) {
+        for (const record of next.values()) {
+          if (records.get(record.key) !== record) record.owner.dispose();
+        }
+        throw error;
+      }
 
       for (const [key, record] of records) {
         if (next.get(key) === record) continue;
@@ -430,14 +451,14 @@
     const owner = activeScope;
 
     // Возвращаем функцию, а не VDOM-объект.
-    return factory(() => {
+    const tree = factory(() => {
       const instanceOwner = owner?.active ? owner : activeScope;
       const el = document.createElement(tag);
 
       // Один независимый эффект для props элемента.
       effect(() => {
         for (const [key, raw] of Object.entries(props)) {
-          if (key.startsWith("on") || key === "ref") continue;
+          if (key.startsWith("on") || key === "ref" || key === "key") continue;
           setProp(el, key, resolve(raw));
         }
       }, instanceOwner, () => flash(el));
@@ -468,16 +489,19 @@
 
       return el;
     });
+    tree[KEY] = props.key;
+    return tree;
   }
 
   // ---------- Template and JSX factories ----------
 
-  function jsx(tag, props = {}) {
+  function jsx(tag, props = {}, jsxKey) {
     const { children, key, ...attributes } = props ?? {};
     const content = children == null ? [] : Array.isArray(children) ? children : [children];
+    const elementProps = { ...attributes, key: jsxKey ?? key };
     return typeof tag === "function"
-      ? component(tag, { ...attributes, children })
-      : createElement(tag, attributes, ...content);
+      ? component(tag, { ...elementProps, children })
+      : createElement(tag, elementProps, ...content);
   }
 
   const jsxs = jsx;
@@ -541,14 +565,15 @@
   function component(fn, props = {}) {
     const parent = activeScope;
 
-    return factory(() => {
+    const tree = factory(() => {
       const previous = activeScope;
       activeScope = parent?.active ? parent : previous;
 
       try {
         const instance = scope(() => {
           // Функция компонента вызывается один раз.
-          const tree = fn(props);
+          const { key, ...componentProps } = props;
+          const tree = fn(componentProps);
 
           if (!isFactory(tree)) {
             throw new Error(
@@ -567,6 +592,8 @@
         activeScope = previous;
       }
     });
+    tree[KEY] = props.key;
+    return tree;
   }
 
   const disposers = new WeakMap();

@@ -38,8 +38,7 @@
         <button onclick=${() => { showItems.value = !showItems.value; }}>Toggle list</button>
         <ul>${each(
           () => showItems.value ? items.value : [],
-          item => item,
-          item => html`<li>${item}</li>`
+          item => html`<li key=${item}>${item}</li>`
         )}</ul>
         ${component(Counter, { title: "Counter A", initial: 0 })}
         ${component(Counter, { title: "Counter B", initial: 10 })}

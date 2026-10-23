@@ -15,6 +15,7 @@ class MockNode {
     this.parentNode = null;
     this.style = {};
     this.listeners = new Map();
+    this.attributes = new Map();
   }
 
   get parentElement() {
@@ -59,8 +60,8 @@ class MockNode {
   removeEventListener(event, handler) {
     if (this.listeners.get(event) === handler) this.listeners.delete(event);
   }
-  setAttribute() {}
-  removeAttribute() {}
+  setAttribute(name, value) { this.attributes.set(name, value); }
+  removeAttribute(name) { this.attributes.delete(name); }
 }
 
 function setup() {
@@ -180,25 +181,33 @@ test('keyed list preserves rows on append and reorder', async () => {
   const second = { id: 2, label: 'B' };
   const items = signal([first]);
   const target = document.createElement('root');
-  const stop = mount(h('ul', {}, each(items, item => item.id, item => h('li', {}, item.label))), target);
+  let renderCalls = 0;
+  const stop = mount(h('ul', {}, each(items, item => {
+    renderCalls++;
+    return h('li', { key: item.id }, item.label);
+  })), target);
   const list = target.childNodes[0];
   const rows = () => list.childNodes.filter(node => node.name === 'li');
   const original = rows()[0];
+  assert.equal(original.attributes.has('key'), false);
 
   items.value = [first, second];
   await nextFlush();
   assert.equal(rows()[0], original);
+  assert.equal(renderCalls, 2);
   const added = rows()[1];
 
   items.value = [second, first];
   await nextFlush();
   assert.equal(rows()[0], added);
   assert.equal(rows()[1], original);
+  assert.equal(renderCalls, 2);
 
   items.value = [second, { id: 1, label: 'Updated' }];
   await nextFlush();
   assert.equal(rows()[0], added);
   assert.notEqual(rows()[1], original);
   assert.equal(rows()[1].childNodes[0].data, 'Updated');
+  assert.equal(renderCalls, 3);
   stop();
 });
