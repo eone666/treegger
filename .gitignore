@@ -1,0 +1,5 @@
+node_modules/
+dist/
+!docs/web/dist/
+handoff.md
+.DS_Store

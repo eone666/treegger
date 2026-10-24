@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b1210">
+  <meta name="description" content="Treegger documentation: Error boundaries">
+  <title>Error boundaries · Treegger</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/treegger-logo.svg">
+  <link rel="stylesheet" href="./assets/styles.css">
+</head>
+<body class="min-h-screen bg-[#0b1210] font-sans text-slate-300 antialiased" data-page="error-boundaries">
+  <a class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-slate-950" href="#content">Skip to content</a>
+  <div class="min-h-screen lg:grid lg:grid-cols-[268px_minmax(0,1fr)]">
+    <aside class="hidden border-r border-white/10 bg-[#0e1913] px-5 pb-6 pt-7 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto" aria-label="Documentation navigation"><a class="mb-9 flex items-center gap-3 rounded-lg px-2 text-white no-underline" href="index.html" aria-label="Treegger documentation home">
+    <img src="./assets/treegger-logo.svg" width="34" height="34" alt="">
+    <span class="text-xl font-bold tracking-tight">treegger<small class="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-light/70">documentation</small></span>
+  </a>
+  <div class="mb-3 px-3 text-[11px] font-semibold tracking-[0.17em] text-brand-light/65">GUIDES & REFERENCE</div>
+  <nav class="flex flex-col gap-0.5" aria-label="Pages"><a href="index.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Treegger</a>
+<a href="getting-started.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Getting started</a>
+<a href="rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Rendering</a>
+<a href="reactivity.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Reactivity</a>
+<a href="stores.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Stores</a>
+<a href="conditional-rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Conditional rendering</a>
+<a href="preserve.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Preserving a hidden branch</a>
+<a href="lists.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Lists</a>
+<a href="refs-and-lifecycle.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Refs and lifecycle</a>
+<a href="error-boundaries.html" class="block rounded-lg px-3 py-2 text-sm transition-colors bg-brand/10 font-medium text-brand-light" aria-current="page">Error boundaries</a>
+<a href="api.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">API reference</a>
+<a href="examples.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Examples</a></nav></aside>
+    <div class="flex min-w-0 min-h-screen flex-col">
+      <details class="border-b border-white/10 bg-[#0e1913] px-5 py-3 lg:hidden"><summary class="cursor-pointer text-sm font-medium text-brand-light">Documentation menu</summary><nav class="mt-4 flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto" aria-label="Pages"><a href="index.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Treegger</a>
+<a href="getting-started.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Getting started</a>
+<a href="rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Rendering</a>
+<a href="reactivity.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Reactivity</a>
+<a href="stores.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Stores</a>
+<a href="conditional-rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Conditional rendering</a>
+<a href="preserve.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Preserving a hidden branch</a>
+<a href="lists.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Lists</a>
+<a href="refs-and-lifecycle.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Refs and lifecycle</a>
+<a href="error-boundaries.html" class="block rounded-lg px-3 py-2 text-sm transition-colors bg-brand/10 font-medium text-brand-light" aria-current="page">Error boundaries</a>
+<a href="api.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">API reference</a>
+<a href="examples.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Examples</a></nav></details>
+      <div class="mx-auto grid w-full max-w-[1450px] flex-1 grid-cols-1 gap-12 px-5 pb-24 pt-10 sm:px-8 lg:px-12 xl:grid-cols-[minmax(0,1fr)_210px] xl:gap-16">
+        <div class="min-w-0">
+          <main id="content" class="prose prose-invert max-w-none prose-headings:scroll-mt-24 prose-headings:text-slate-50 prose-a:text-brand-light prose-a:decoration-brand/40 hover:prose-a:text-brand-light prose-strong:text-slate-100 prose-code:text-brand-light prose-pre:rounded-xl prose-pre:border prose-pre:border-white/10 prose-pre:bg-[#101b16] prose-th:text-brand-light prose-td:text-slate-300"><h1 id="error-boundaries">Error boundaries</h1>
+<p><code>ErrorBoundary</code> displays fallback content if its child tree throws during initial rendering, a reactive update, or a Treegger event handler.</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-jsx">import { ErrorBoundary } from &quot;treegger&quot;;
+
+const view = &lt;ErrorBoundary fallback={(error, reset) =&gt;
+  &lt;button onClick={reset}&gt;Retry: {String(error)}&lt;/button&gt;
+}&gt;
+  &lt;Widget /&gt;
+&lt;/ErrorBoundary&gt;;
+</code></pre>
+</div><p>The fallback receives the caught error and a <code>reset()</code> function. Calling <code>reset()</code> disposes the fallback and tries the original children again. A fallback may also be a static Treegger child.</p>
+<p>With <code>html</code> templates:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">import { html } from &quot;treegger&quot;;
+
+const view = html`
+  &lt;ErrorBoundary fallback=${(error, reset) =&gt; html`
+    &lt;p&gt;${String(error)}&lt;/p&gt;
+    &lt;button onclick=${reset}&gt;Retry&lt;/button&gt;
+  `}&gt;
+    &lt;button onclick=${() =&gt; { throw new Error(&quot;Failed&quot;); }}&gt;Throw&lt;/button&gt;
+  &lt;/ErrorBoundary&gt;
+`;
+</code></pre>
+</div><p>The failing branch is disposed before the fallback is mounted. Errors thrown by a fallback can reach an outer boundary. If there is no boundary, they propagate as errors.</p>
+<p>An event handler that returns a rejected native Promise is also reported to its boundary. Errors from unrelated browser callbacks or asynchronous work outside Treegger's handlers are outside the boundary's scope; handle those where they occur.</p>
+<p>See <a href="https://github.com/eone666/treegger/blob/main/examples/error-boundary.js">error-boundary.js</a> and <a href="https://github.com/eone666/treegger/blob/main/examples/error-boundary.tsx">error-boundary.tsx</a>.</p>
+</main>
+          <nav class="mt-16 grid gap-3 border-t border-white/10 pt-8 sm:grid-cols-2" aria-label="Adjacent pages"><a class="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5" href="refs-and-lifecycle.html"><span class="text-xs text-slate-500">← Previous</span><strong class="font-medium text-brand-light">Refs and lifecycle</strong></a>
+<a class="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5 sm:col-start-2" href="api.html"><span class="text-xs text-slate-500">Next →</span><strong class="font-medium text-brand-light">API reference</strong></a></nav>
+        </div>
+        <aside class="hidden xl:block" aria-label="On this page"></aside>
+      </div>
+      <footer class="border-t border-white/10 px-5 py-6 text-sm text-slate-500 sm:px-8 lg:px-12">
+        <div class="mx-auto flex max-w-[1450px] flex-wrap items-center justify-between gap-3">
+          <span class="font-semibold text-slate-300">Treegger</span>
+          <div class="flex flex-wrap items-center gap-5"><a class="hover:text-brand-light" href="https://github.com/eone666/treegger" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a><a class="hover:text-brand-light" href="https://github.com/eone666/treegger/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a></div>
+        </div>
+      </footer>
+    </div>
+  </div>
+  <script defer src="./assets/copy-code.js"></script>
+</body>
+</html>

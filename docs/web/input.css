@@ -1,0 +1,19 @@
+@import "tailwindcss" source(none);
+@plugin "@tailwindcss/typography";
+@source "./dist";
+
+@theme {
+  --color-brand: #208a60;
+  --color-brand-light: #6fc69d;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  ::selection {
+    background: #208a60;
+    color: #ecfdf5;
+  }
+}

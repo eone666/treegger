@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b1210">
+  <meta name="description" content="Treegger documentation: Rendering">
+  <title>Rendering · Treegger</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/treegger-logo.svg">
+  <link rel="stylesheet" href="./assets/styles.css">
+</head>
+<body class="min-h-screen bg-[#0b1210] font-sans text-slate-300 antialiased" data-page="rendering">
+  <a class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-slate-950" href="#content">Skip to content</a>
+  <div class="min-h-screen lg:grid lg:grid-cols-[268px_minmax(0,1fr)]">
+    <aside class="hidden border-r border-white/10 bg-[#0e1913] px-5 pb-6 pt-7 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto" aria-label="Documentation navigation"><a class="mb-9 flex items-center gap-3 rounded-lg px-2 text-white no-underline" href="index.html" aria-label="Treegger documentation home">
+    <img src="./assets/treegger-logo.svg" width="34" height="34" alt="">
+    <span class="text-xl font-bold tracking-tight">treegger<small class="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-light/70">documentation</small></span>
+  </a>
+  <div class="mb-3 px-3 text-[11px] font-semibold tracking-[0.17em] text-brand-light/65">GUIDES & REFERENCE</div>
+  <nav class="flex flex-col gap-0.5" aria-label="Pages"><a href="index.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Treegger</a>
+<a href="getting-started.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Getting started</a>
+<a href="rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors bg-brand/10 font-medium text-brand-light" aria-current="page">Rendering</a>
+<a href="reactivity.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Reactivity</a>
+<a href="stores.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Stores</a>
+<a href="conditional-rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Conditional rendering</a>
+<a href="preserve.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Preserving a hidden branch</a>
+<a href="lists.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Lists</a>
+<a href="refs-and-lifecycle.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Refs and lifecycle</a>
+<a href="error-boundaries.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Error boundaries</a>
+<a href="api.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">API reference</a>
+<a href="examples.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Examples</a></nav></aside>
+    <div class="flex min-w-0 min-h-screen flex-col">
+      <details class="border-b border-white/10 bg-[#0e1913] px-5 py-3 lg:hidden"><summary class="cursor-pointer text-sm font-medium text-brand-light">Documentation menu</summary><nav class="mt-4 flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto" aria-label="Pages"><a href="index.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Treegger</a>
+<a href="getting-started.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Getting started</a>
+<a href="rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors bg-brand/10 font-medium text-brand-light" aria-current="page">Rendering</a>
+<a href="reactivity.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Reactivity</a>
+<a href="stores.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Stores</a>
+<a href="conditional-rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Conditional rendering</a>
+<a href="preserve.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Preserving a hidden branch</a>
+<a href="lists.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Lists</a>
+<a href="refs-and-lifecycle.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Refs and lifecycle</a>
+<a href="error-boundaries.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Error boundaries</a>
+<a href="api.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">API reference</a>
+<a href="examples.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Examples</a></nav></details>
+      <div class="mx-auto grid w-full max-w-[1450px] flex-1 grid-cols-1 gap-12 px-5 pb-24 pt-10 sm:px-8 lg:px-12 xl:grid-cols-[minmax(0,1fr)_210px] xl:gap-16">
+        <div class="min-w-0">
+          <main id="content" class="prose prose-invert max-w-none prose-headings:scroll-mt-24 prose-headings:text-slate-50 prose-a:text-brand-light prose-a:decoration-brand/40 hover:prose-a:text-brand-light prose-strong:text-slate-100 prose-code:text-brand-light prose-pre:rounded-xl prose-pre:border prose-pre:border-white/10 prose-pre:bg-[#101b16] prose-th:text-brand-light prose-td:text-slate-300"><h1 id="rendering">Rendering</h1>
+<p>Treegger creates real DOM nodes. Reactive bindings update the affected text or property; a component function is called when its instance is created, not on every signal change.</p>
+<p>For showing and hiding branches, see <a href="conditional-rendering.html">Conditional rendering</a>.
+For hiding without disposing a branch, see <a href="preserve.html">Preserve</a>.</p>
+<h2 id="html-tagged-templates"><code>html</code> tagged templates</h2>
+<p><code>html</code> turns a tagged template into a Treegger tree:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">import { html, mount, signal } from &quot;treegger&quot;;
+
+const name = signal(&quot;Ada&quot;);
+mount(html`&lt;p&gt;Hello, ${name}&lt;/p&gt;`, document.querySelector(&quot;#app&quot;));
+</code></pre>
+</div><p>Interpolations can contain text, numbers, nodes, Treegger trees, signals, computed values, functions, and arrays of children. A signal or computed value in child position updates its text when its value changes. A function in child position is evaluated reactively:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">const visible = signal(true);
+html`&lt;div&gt;${() =&gt; visible.value ? html`&lt;span&gt;Ready&lt;/span&gt;` : null}&lt;/div&gt;`;
+</code></pre>
+</div><p>Use a function when a binding reads a field from a store or combines values:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">html`&lt;p class=${() =&gt; state.active ? &quot;active&quot; : &quot;&quot;}&gt;${() =&gt; state.user.name}&lt;/p&gt;`;
+</code></pre>
+</div><p>Templates may have multiple root nodes. <code>&lt;&gt;…&lt;/&gt;</code> and <code>&lt;Fragment&gt;…&lt;/Fragment&gt;</code> also create fragments without a visible wrapper.</p>
+<p>HTML templates recognize built-in <code>&lt;Each&gt;</code> and <code>&lt;ErrorBoundary&gt;</code> tags. Pass a user component through an interpolation in the tag name:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">function Greeting({ name }) {
+  return html`&lt;p&gt;Hello, ${name}&lt;/p&gt;`;
+}
+
+html`&lt;${Greeting} name=&quot;Ada&quot; /&gt;`;
+</code></pre>
+</div><p>A bare <code>&lt;Greeting&gt;</code> tag in an <code>html</code> template is rejected; the template cannot resolve a JavaScript identifier from its name.</p>
+<h2 id="jsx">JSX</h2>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-jsx">import { mount, signal } from &quot;treegger&quot;;
+
+const count = signal(0);
+mount(&lt;button onClick={() =&gt; count.value++}&gt;{count}&lt;/button&gt;, document.querySelector(&quot;#app&quot;));
+</code></pre>
+</div><p>JSX uses Treegger's automatic runtime exports <code>jsx</code>, <code>jsxs</code>, and <code>jsxDEV</code>. The transform imports these for you. JSX fragments work with <code>&lt;&gt;...&lt;/&gt;</code> or <code>&lt;Fragment&gt;...&lt;/Fragment&gt;</code>.</p>
+<h2 id="components">Components</h2>
+<p>A component can return a Treegger element or another <code>TreeggerNode</code>, including a string, number, <code>boolean</code>, or <code>null</code>:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-jsx">import { signal } from &quot;treegger&quot;;
+
+function Counter({ initial = 0 }) {
+  const count = signal(initial);
+  return &lt;button onClick={() =&gt; count.value++}&gt;{count}&lt;/button&gt;;
+}
+
+const view = &lt;Counter initial={2} /&gt;;
+</code></pre>
+</div><p>In plain JavaScript, use <code>component(Counter, { initial: 2 })</code> or <code>html</code> with <code>&lt;${Counter} initial=${2} /&gt;</code>. <code>createElement(&quot;button&quot;, props, ...children)</code> is available when constructing trees directly. JSX users generally do not need to call it.</p>
+<p>Component state and effects created while the component runs belong to that component instance. When the instance is removed, its owned effects and lifecycle cleanups are disposed.</p>
+<p>The component function runs once per instance. Returning a primitive directly renders its current value. For reactive text, return a function that reads the signal:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-jsx">function CountLabel({ count }) {
+  return () =&gt; `Count: ${count.value}`;
+}
+</code></pre>
+</div><p><code>null</code> and boolean results render no visible content. Strings and numbers render as text. Reading <code>count.value</code> while constructing a string directly in the component body does not subscribe the component to updates.</p>
+<h2 id="direct-createelement-api">Direct <code>createElement</code> API</h2>
+<p>When writing plain JavaScript without a tagged template, call <code>createElement(tag, props, ...children)</code>. Components can be wrapped with <code>component(fn, props)</code>:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">import { component, createElement, mount, signal } from &quot;treegger&quot;;
+
+function Counter() {
+  const count = signal(0);
+  return createElement(
+    &quot;button&quot;,
+    { onClick: () =&gt; count.value++ },
+    count
+  );
+}
+
+mount(component(Counter, {}), document.querySelector(&quot;#app&quot;));
+</code></pre>
+</div><p><code>createElement</code> also accepts a component function as its tag. Pass children as arguments after props. When rendering <code>Each</code> directly, pass its row function as the child argument and give each returned row a <code>key</code> prop.</p>
+<h2 id="props-and-events">Props and events</h2>
+<p>Static props are set when the element is created. Function or signal props form reactive bindings. Treegger handles <code>className</code>, <code>style</code>, <code>value</code>, and <code>checked</code> as DOM properties; other values become attributes. <code>null</code> and <code>false</code> remove an attribute, and <code>true</code> creates an empty attribute.</p>
+<p>Event props begin with <code>on</code>, such as <code>onClick</code> in JSX or <code>onclick</code> in an HTML template. The handler is attached when the element is created and removed when its owner is disposed. The <code>key</code> and <code>ref</code> props are reserved for Treegger and are not written as HTML attributes.</p>
+<h2 id="mount-and-unmount">Mount and unmount</h2>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">const unmount = mount(tree, target);
+// Later:
+unmount();
+</code></pre>
+</div><p><code>mount</code> appends to the target; it does not replace its existing children. Its return value removes this mount's nodes and disposes its owned work. Call it once for a given mount.</p>
+</main>
+          <nav class="mt-16 grid gap-3 border-t border-white/10 pt-8 sm:grid-cols-2" aria-label="Adjacent pages"><a class="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5" href="getting-started.html"><span class="text-xs text-slate-500">← Previous</span><strong class="font-medium text-brand-light">Getting started</strong></a>
+<a class="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5 sm:col-start-2" href="reactivity.html"><span class="text-xs text-slate-500">Next →</span><strong class="font-medium text-brand-light">Reactivity</strong></a></nav>
+        </div>
+        <aside class="hidden xl:block" aria-label="On this page"><div class="sticky top-24 border-l border-white/10 pl-5">
+    <div class="mb-4 text-[11px] font-semibold tracking-[0.15em] text-brand-light/70">ON THIS PAGE</div>
+    <nav class="flex flex-col gap-3" aria-label="Page sections"><a class="text-sm text-slate-500 hover:text-brand-light" href="#html-tagged-templates">`html` tagged templates</a>
+<a class="text-sm text-slate-500 hover:text-brand-light" href="#jsx">JSX</a>
+<a class="text-sm text-slate-500 hover:text-brand-light" href="#components">Components</a>
+<a class="text-sm text-slate-500 hover:text-brand-light" href="#direct-createelement-api">Direct `createElement` API</a>
+<a class="text-sm text-slate-500 hover:text-brand-light" href="#props-and-events">Props and events</a>
+<a class="text-sm text-slate-500 hover:text-brand-light" href="#mount-and-unmount">Mount and unmount</a></nav>
+  </div></aside>
+      </div>
+      <footer class="border-t border-white/10 px-5 py-6 text-sm text-slate-500 sm:px-8 lg:px-12">
+        <div class="mx-auto flex max-w-[1450px] flex-wrap items-center justify-between gap-3">
+          <span class="font-semibold text-slate-300">Treegger</span>
+          <div class="flex flex-wrap items-center gap-5"><a class="hover:text-brand-light" href="https://github.com/eone666/treegger" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a><a class="hover:text-brand-light" href="https://github.com/eone666/treegger/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a></div>
+        </div>
+      </footer>
+    </div>
+  </div>
+  <script defer src="./assets/copy-code.js"></script>
+</body>
+</html>

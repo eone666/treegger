@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b1210">
+  <meta name="description" content="Treegger documentation: Reactivity">
+  <title>Reactivity · Treegger</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/treegger-logo.svg">
+  <link rel="stylesheet" href="./assets/styles.css">
+</head>
+<body class="min-h-screen bg-[#0b1210] font-sans text-slate-300 antialiased" data-page="reactivity">
+  <a class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-slate-950" href="#content">Skip to content</a>
+  <div class="min-h-screen lg:grid lg:grid-cols-[268px_minmax(0,1fr)]">
+    <aside class="hidden border-r border-white/10 bg-[#0e1913] px-5 pb-6 pt-7 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto" aria-label="Documentation navigation"><a class="mb-9 flex items-center gap-3 rounded-lg px-2 text-white no-underline" href="index.html" aria-label="Treegger documentation home">
+    <img src="./assets/treegger-logo.svg" width="34" height="34" alt="">
+    <span class="text-xl font-bold tracking-tight">treegger<small class="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-light/70">documentation</small></span>
+  </a>
+  <div class="mb-3 px-3 text-[11px] font-semibold tracking-[0.17em] text-brand-light/65">GUIDES & REFERENCE</div>
+  <nav class="flex flex-col gap-0.5" aria-label="Pages"><a href="index.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Treegger</a>
+<a href="getting-started.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Getting started</a>
+<a href="rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Rendering</a>
+<a href="reactivity.html" class="block rounded-lg px-3 py-2 text-sm transition-colors bg-brand/10 font-medium text-brand-light" aria-current="page">Reactivity</a>
+<a href="stores.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Stores</a>
+<a href="conditional-rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Conditional rendering</a>
+<a href="preserve.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Preserving a hidden branch</a>
+<a href="lists.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Lists</a>
+<a href="refs-and-lifecycle.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Refs and lifecycle</a>
+<a href="error-boundaries.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Error boundaries</a>
+<a href="api.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">API reference</a>
+<a href="examples.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Examples</a></nav></aside>
+    <div class="flex min-w-0 min-h-screen flex-col">
+      <details class="border-b border-white/10 bg-[#0e1913] px-5 py-3 lg:hidden"><summary class="cursor-pointer text-sm font-medium text-brand-light">Documentation menu</summary><nav class="mt-4 flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto" aria-label="Pages"><a href="index.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Treegger</a>
+<a href="getting-started.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Getting started</a>
+<a href="rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Rendering</a>
+<a href="reactivity.html" class="block rounded-lg px-3 py-2 text-sm transition-colors bg-brand/10 font-medium text-brand-light" aria-current="page">Reactivity</a>
+<a href="stores.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Stores</a>
+<a href="conditional-rendering.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Conditional rendering</a>
+<a href="preserve.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Preserving a hidden branch</a>
+<a href="lists.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Lists</a>
+<a href="refs-and-lifecycle.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Refs and lifecycle</a>
+<a href="error-boundaries.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Error boundaries</a>
+<a href="api.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">API reference</a>
+<a href="examples.html" class="block rounded-lg px-3 py-2 text-sm transition-colors text-slate-400 hover:bg-white/5 hover:text-slate-100">Examples</a></nav></details>
+      <div class="mx-auto grid w-full max-w-[1450px] flex-1 grid-cols-1 gap-12 px-5 pb-24 pt-10 sm:px-8 lg:px-12 xl:grid-cols-[minmax(0,1fr)_210px] xl:gap-16">
+        <div class="min-w-0">
+          <main id="content" class="prose prose-invert max-w-none prose-headings:scroll-mt-24 prose-headings:text-slate-50 prose-a:text-brand-light prose-a:decoration-brand/40 hover:prose-a:text-brand-light prose-strong:text-slate-100 prose-code:text-brand-light prose-pre:rounded-xl prose-pre:border prose-pre:border-white/10 prose-pre:bg-[#101b16] prose-th:text-brand-light prose-td:text-slate-300"><h1 id="reactivity">Reactivity</h1>
+<h2 id="signals">Signals</h2>
+<p><code>signal(initial)</code> returns an object with a mutable <code>.value</code> property:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">import { effect, signal } from &quot;treegger&quot;;
+
+const count = signal(0);
+const watcher = effect(() =&gt; console.log(count.value));
+count.value = 1;
+watcher.stop();
+</code></pre>
+</div><p>An effect subscribes to the signals it reads during its latest run. Assigning the same value according to <code>Object.is</code> does not notify subscribers. Signal values can be shared at module scope across components.</p>
+<p>A signal tracks assignments to <code>.value</code>, not mutations inside the value. For an array, <code>items.value.push(item)</code> changes the array without notifying effects. Assign a new array instead:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">const items = signal([&quot;A&quot;]);
+items.value = [...items.value, &quot;B&quot;];
+</code></pre>
+</div><p>If you prefer mutating an array with <code>push</code>, put it in a <a href="stores.html"><code>store</code></a>.</p>
+<p>Effects run immediately when created. Later updates are queued in a microtask, so several synchronous writes can be handled in one pass. Dependencies are collected again on each run: a conditional effect stops following branches it no longer reads.</p>
+<h2 id="computed-values">Computed values</h2>
+<p><code>computed(() =&gt; expression)</code> returns a lazy, cached derived value:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">import { computed, signal } from &quot;treegger&quot;;
+
+const price = signal(10);
+const doubled = computed(() =&gt; price.value * 2);
+console.log(doubled.value); // 20
+price.value = 12;
+console.log(doubled.value); // 24
+doubled.dispose();
+</code></pre>
+</div><p>The calculation runs when <code>.value</code> is read and recalculates after a dependency changes. Reading a computed value inside an effect or rendering binding subscribes that consumer to updates. Read-only computed values warn if assigned at runtime; their TypeScript <code>.value</code> property is read-only.</p>
+<p>A computed value can also define a setter:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">const amount = signal(10);
+const doubled = computed({
+  get: () =&gt; amount.value * 2,
+  set: next =&gt; { amount.value = next / 2; }
+});
+doubled.value = 30; // amount.value is 15
+</code></pre>
+</div><p>Computed values created inside a component or scope are disposed with their owner. A standalone computed value has a <code>dispose()</code> method.</p>
+<h2 id="effects-and-cleanup">Effects and cleanup</h2>
+<p><code>effect(run)</code> is for work that should respond to reactive reads. It returns a handle with <code>active</code> and <code>stop()</code>. If <code>run</code> returns a function, Treegger calls that cleanup before the next run and when the effect stops:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">const query = signal(&quot;first&quot;);
+const request = effect(() =&gt; {
+  const controller = new AbortController();
+  fetch(`/search?q=${encodeURIComponent(query.value)}`, {
+    signal: controller.signal
+  }).catch(error =&gt; {
+    if (error.name !== &quot;AbortError&quot;) console.error(error);
+  });
+  return () =&gt; controller.abort();
+});
+
+query.value = &quot;second&quot;; // abort the previous request before rerunning
+request.stop();
+</code></pre>
+</div><p>This cleanup belongs to a single execution of the effect. For a subscription that lasts for the lifetime of a component, register it once and use <a href="refs-and-lifecycle.html"><code>onUnmount</code></a>.</p>
+<p>An effect created inside a component or <code>scope</code> is stopped when that owner is disposed. An effect created outside a scope remains active until <code>stop()</code> is called.</p>
+<h2 id="reactive-rendering">Reactive rendering</h2>
+<p>Insert a signal or computed value as a child for direct reactive text. Use a function for expressions that read reactive values:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-jsx">&lt;p&gt;{count} × 2 = {() =&gt; count.value * 2}&lt;/p&gt;
+</code></pre>
+</div><div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-js">html`&lt;p&gt;${count} × 2 = ${() =&gt; count.value * 2}&lt;/p&gt;`;
+</code></pre>
+</div><p>Reactive props work the same way: <code>class={ () =&gt; active.value ? &quot;on&quot; : &quot;off&quot; }</code> in JSX, or <code>class=${() =&gt; active.value ? &quot;on&quot; : &quot;off&quot;}</code> in an HTML template. A plain value is applied once.</p>
+<p>For nested state, see <a href="stores.html">Stores</a>.</p>
+</main>
+          <nav class="mt-16 grid gap-3 border-t border-white/10 pt-8 sm:grid-cols-2" aria-label="Adjacent pages"><a class="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5" href="rendering.html"><span class="text-xs text-slate-500">← Previous</span><strong class="font-medium text-brand-light">Rendering</strong></a>
+<a class="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5 sm:col-start-2" href="stores.html"><span class="text-xs text-slate-500">Next →</span><strong class="font-medium text-brand-light">Stores</strong></a></nav>
+        </div>
+        <aside class="hidden xl:block" aria-label="On this page"><div class="sticky top-24 border-l border-white/10 pl-5">
+    <div class="mb-4 text-[11px] font-semibold tracking-[0.15em] text-brand-light/70">ON THIS PAGE</div>
+    <nav class="flex flex-col gap-3" aria-label="Page sections"><a class="text-sm text-slate-500 hover:text-brand-light" href="#signals">Signals</a>
+<a class="text-sm text-slate-500 hover:text-brand-light" href="#computed-values">Computed values</a>
+<a class="text-sm text-slate-500 hover:text-brand-light" href="#effects-and-cleanup">Effects and cleanup</a>
+<a class="text-sm text-slate-500 hover:text-brand-light" href="#reactive-rendering">Reactive rendering</a></nav>
+  </div></aside>
+      </div>
+      <footer class="border-t border-white/10 px-5 py-6 text-sm text-slate-500 sm:px-8 lg:px-12">
+        <div class="mx-auto flex max-w-[1450px] flex-wrap items-center justify-between gap-3">
+          <span class="font-semibold text-slate-300">Treegger</span>
+          <div class="flex flex-wrap items-center gap-5"><a class="hover:text-brand-light" href="https://github.com/eone666/treegger" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a><a class="hover:text-brand-light" href="https://github.com/eone666/treegger/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a></div>
+        </div>
+      </footer>
+    </div>
+  </div>
+  <script defer src="./assets/copy-code.js"></script>
+</body>
+</html>
