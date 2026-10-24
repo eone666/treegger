@@ -1,10 +1,10 @@
-import { html, mount } from "../dist/index.js";
+import { html, mount } from "treegger";
 
 mount(html`
   <ErrorBoundary fallback=${(error, reset) => html`
     <p>${error.message}</p>
-    <button onclick=${reset}>Try again</button>
+    <button onClick=${reset}>Try again</button>
   `}>
-    <button onclick=${() => { throw new Error("Something broke"); }}>Throw error</button>
+    <button onClick=${() => { throw new Error("Something broke"); }}>Throw error</button>
   </ErrorBoundary>
 `, document.querySelector("#app"));

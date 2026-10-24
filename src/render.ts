@@ -1,12 +1,13 @@
 import { activeScope, setActiveScope, handleError, flash, scope, addCleanup, effect, untrack, type Owner } from "./core";
 import { DOM_REF, isSignal, resolve } from "./signals";
 import { appendList } from "./list";
-import type { Child, Key, ErrorBoundaryProps } from "./types";
+import type { Key, ErrorBoundaryProps } from "./types";
+import { activeNamespace, SVG_NAMESPACE, svgTagNames, svgAttributeNames, withNamespace, childNamespace, removeRange } from "./dom";
 
   // ---------- Element factories ----------
 
   const FACTORY = Symbol("treegger.factory");
-  const EACH = Symbol("treegger.each");
+  const EACH: unique symbol = Symbol("treegger.each");
   const KEY = Symbol("treegger.key");
   const FRAGMENT = Symbol("treegger.fragment");
   const DEBUG = Symbol("treegger.debug");
@@ -33,6 +34,7 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
 
   function errorBoundary(children: unknown, fallback?: ErrorBoundaryProps["fallback"]) {
     const tree = factory(() => {
+      const namespace = activeNamespace;
       const instance = scope(() => {
         const boundaryOwner = activeScope;
         const root = document.createDocumentFragment();
@@ -56,11 +58,11 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
           setActiveScope(boundaryOwner);
           let rendered;
           try {
-            rendered = scope(() => {
+            rendered = withNamespace(namespace, () => scope(() => {
               const content = document.createDocumentFragment();
               appendChild(content, evaluate && typeof value === "function" ? value() : value, activeScope);
               return { fragment: content, nodes: [...content.childNodes] };
-            });
+            }));
           } finally {
             setActiveScope(previousScope);
           }
@@ -103,19 +105,42 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
   }
 
   function Preserve({ when = true, children = [] }: { when?: unknown; children?: unknown } = {}) {
-    const owner = activeScope;
-    return factory(() => {
-      const currentOwner = activeScope?.active ? activeScope : owner;
-      const container = document.createElement("div");
-      container.style.display = "contents";
-      for (const child of Array.isArray(children) ? children : [children]) {
-        appendChild(container, child, currentOwner);
-      }
+    const tree = factory(() => scope(() => {
+      const container = document.createDocumentFragment();
+      const parked = document.createDocumentFragment();
+      const first = document.createComment("treegger-preserve-start");
+      const last = document.createComment("treegger-preserve-end");
+      container.append(first);
+      untrack(() => {
+        for (const child of Array.isArray(children) ? children : [children]) {
+          appendChild(container, child, activeScope);
+        }
+      });
+      container.append(last);
+      let attached = true;
       effect(() => {
-        container.style.display = resolve(when) ? "contents" : "none";
-      }, currentOwner);
+        const show = Boolean(resolve(when));
+        if (show === attached) return;
+        if (show) {
+          last.parentNode!.insertBefore(parked, last);
+        } else {
+          let node = first.nextSibling;
+          while (node && node !== last) {
+            const next = node.nextSibling;
+            parked.append(node);
+            node = next;
+          }
+        }
+        attached = show;
+      });
+      addCleanup(activeScope, () => {
+        removeRange({ first, last });
+        while (parked.firstChild) parked.firstChild.remove();
+      });
       return container;
-    });
+    }).value);
+    tree[FRAGMENT] = true;
+    return tree;
   }
 
   function Each({ items, children, fallback = null }: { items?: unknown; children?: unknown; fallback?: unknown } = {}) {
@@ -159,9 +184,25 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
 
   // ---------- DOM helpers ----------
 
-  function setProp(el: HTMLElement, key: string, value: unknown) {
-    if (key === "className") {
-      el.className = String(value ?? "");
+  const booleanAttributes = new Set([
+    "allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls", "default", "defer",
+    "disabled", "disablepictureinpicture", "disableremoteplayback", "formnovalidate", "hidden", "inert",
+    "ismap", "itemscope", "loop", "multiple", "muted", "nomodule", "novalidate", "open",
+    "playsinline", "readonly", "required", "reversed", "selected", "shadowrootclonable",
+    "shadowrootdelegatesfocus", "shadowrootserializable"
+  ]);
+
+  const svgAliases = new Map([
+    "strokeWidth", "strokeLinecap", "strokeLinejoin", "strokeDasharray", "strokeDashoffset", "strokeMiterlimit",
+    "fillRule", "clipRule", "fillOpacity", "strokeOpacity", "clipPath", "markerStart", "markerMid", "markerEnd",
+    "fontSize", "fontFamily", "textAnchor", "dominantBaseline", "stopColor", "stopOpacity", "vectorEffect"
+  ].map(name => [name.toLowerCase(), name.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`)]));
+
+  function setProp(el: HTMLElement | SVGElement, key: string, value: unknown) {
+    if (typeof value === "function") throw new TypeError("Function DOM prop values are unsupported; use a signal or computed value");
+    if (key === "className" || key === "classname") {
+      if (el.namespaceURI === SVG_NAMESPACE) el.setAttribute("class", String(value ?? ""));
+      else (el as HTMLElement).className = String(value ?? "");
       return;
     }
 
@@ -184,9 +225,17 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
       return;
     }
 
-    if (value == null || value === false) {
+    if (el.namespaceURI === SVG_NAMESPACE) {
+      key = svgAttributeNames.get(key.toLowerCase()) ?? svgAliases.get(key.toLowerCase()) ?? key;
+    }
+    const attributeNamespace = key.startsWith("xlink:") ? "http://www.w3.org/1999/xlink"
+      : key.startsWith("xml:") ? "http://www.w3.org/XML/1998/namespace" : null;
+    if (attributeNamespace) {
+      if (value == null || value === false) el.removeAttributeNS(attributeNamespace, key.split(":")[1]);
+      else el.setAttributeNS(attributeNamespace, key, String(value));
+    } else if (value == null || (value === false && el.namespaceURI !== SVG_NAMESPACE && booleanAttributes.has(key.toLowerCase()))) {
       el.removeAttribute(key);
-    } else if (value === true) {
+    } else if (value === true && el.namespaceURI !== SVG_NAMESPACE && booleanAttributes.has(key.toLowerCase())) {
       el.setAttribute(key, "");
     } else {
       el.setAttribute(key, String(value));
@@ -217,8 +266,12 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
       return;
     }
 
-    if (typeof child === "function" || isSignal(child)) {
-      const signalChild = isSignal(child);
+    if (typeof child === "function") {
+      throw new TypeError("Function children are unsupported; wrap reactive expressions in computed()");
+    }
+
+    if (isSignal(child)) {
+      const namespace = activeNamespace;
       const marker = document.createComment("treegger");
       parent.append(marker);
       let textNode: Text | null = null;
@@ -232,27 +285,18 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
         }
       };
 
-      effect(() => {
-        const value = signalChild ? child.value : undefined;
-        const simple = signalChild ? primitiveText(value) : null;
+      effect(() => withNamespace(namespace, () => {
+        const value = child.value;
+        const simple = primitiveText(value);
         if (simple !== null) {
           setText(simple);
           return;
         }
         const rendered = scope(() => {
-          const current = signalChild ? value : resolve(child);
-          const text = primitiveText(current);
-          if (text !== null) return { text };
           const fragment = document.createDocumentFragment();
-          untrack(() => appendChild(fragment, current, activeScope));
+          untrack(() => appendChild(fragment, value, activeScope));
           return { fragment, nodes: [...fragment.childNodes] };
         });
-
-        if ("text" in rendered.value) {
-          setText(rendered.value.text!);
-          rendered.owner.dispose();
-          return;
-        }
 
         textNode?.remove();
         textNode = null;
@@ -260,9 +304,9 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
 
         return () => {
           rendered.owner.dispose();
-          for (const node of rendered.value.nodes ?? []) node.remove();
+          for (const node of rendered.value.nodes) node.remove();
         };
-      }, owner, () => flash(marker.previousSibling || marker.parentElement, owner));
+      }), owner, () => flash(marker.previousSibling || marker.parentElement, owner));
       return;
     }
 
@@ -274,6 +318,17 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
   }
 
   // ---------- createElement ----------
+
+  type EventCallback = (event: Event) => unknown;
+  function isEventCallback(value: unknown): value is EventCallback {
+    return typeof value === "function";
+  }
+
+  function bindProp(el: HTMLElement | SVGElement, key: string, value: unknown, owner: Owner | null) {
+    if (isSignal(value)) {
+      effect(() => setProp(el, key, value.value), owner, () => flash(el, owner));
+    } else setProp(el, key, value);
+  }
 
   function createElement(tag: string | ((props: Record<string, unknown>) => unknown), props: Record<string, unknown> | null = {}, ...children: unknown[]) {
     props ??= {};
@@ -290,18 +345,23 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
     // Возвращаем функцию, а не VDOM-объект.
     const tree = factory(() => {
       const instanceOwner = activeScope?.active ? activeScope : owner;
-      const el = document.createElement(tag);
-      const events: [string, (event: Event) => unknown][] = [];
+      const namespace = tag === "svg" ? SVG_NAMESPACE : activeNamespace;
+      const el = namespace === SVG_NAMESPACE
+        ? document.createElementNS(SVG_NAMESPACE, svgTagNames.get(tag.toLowerCase()) ?? tag)
+        : document.createElement(tag);
+      const events: [string, EventCallback | { value: unknown }][] = [];
       for (const [key, value] of Object.entries(props)) {
         if (key === "ref" || key === "key") continue;
-        if (key.startsWith("on") && typeof value === "function") {
-          events.push([key.slice(2).toLowerCase(), value as (event: Event) => unknown]);
-        } else if (!key.startsWith("on")) {
-          if (typeof value === "function" || isSignal(value)) {
-            effect(() => setProp(el, key, resolve(value)), instanceOwner, () => flash(el, instanceOwner));
-          } else {
-            setProp(el, key, value);
+        // A select cannot resolve its value until its options have been mounted.
+        if (key === "value" && el.localName === "select") continue;
+        if (key.startsWith("on")) {
+          if (value == null) continue;
+          if (!isEventCallback(value) && !isSignal(value)) {
+            throw new TypeError(`${key} must be an event callback, signal, computed, or nullish value`);
           }
+          events.push([key.slice(2).toLowerCase(), value]);
+        } else {
+          bindProp(el, key, value, instanceOwner);
         }
       }
 
@@ -317,10 +377,17 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
       }
 
       // События не нужно переподписывать при обновлении.
-      for (const [event, handler] of events) {
+      for (const [event, source] of events) {
         const listener = (browserEvent: Event) => {
           try {
-            const result = handler(browserEvent);
+            const result = untrack(() => {
+              const handler = isSignal(source) ? source.value : source;
+              if (handler == null) return;
+              if (!isEventCallback(handler)) {
+                throw new TypeError(`${event} handler must resolve to a callback or nullish value`);
+              }
+              return handler(browserEvent);
+            });
             if (result instanceof Promise) {
               result.catch((error: unknown) => {
                 if (!handleError(error, instanceOwner)) queueMicrotask(() => { throw error; });
@@ -334,8 +401,12 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
         addCleanup(instanceOwner, () => el.removeEventListener(event, listener));
       }
 
-      for (const child of children) {
-        appendChild(el, child, instanceOwner);
+      withNamespace(childNamespace(el), () => {
+        for (const child of children) appendChild(el, child, instanceOwner);
+      });
+
+      if (el.localName === "select" && Object.hasOwn(props, "value")) {
+        bindProp(el, "value", props.value, instanceOwner);
       }
 
       return el;
@@ -356,7 +427,7 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
       try {
         const instance = scope(() => {
           // Функция компонента вызывается один раз.
-          const { key, ...componentProps } = props;
+          const { key: _key, ...componentProps } = props;
           const result = fn(componentProps);
           if (isFactory(result)) return result();
 
@@ -388,10 +459,10 @@ import type { Child, Key, ErrorBoundaryProps } from "./types";
   function mount(tree: Factory | Node | object, target: RenderParent) {
     const debugged = DEBUG in tree && tree[DEBUG] === true && "tree" in tree;
     const content = debugged ? tree.tree : tree;
-    const instance = scope(() => {
+    const instance = withNamespace(childNamespace(target), () => scope(() => {
       if (debugged) activeScope!.debugUpdates = "showUpdates" in tree && tree.showUpdates === true;
       return isFactory(content) ? content() : content instanceof Node ? content : fragment(content)();
-    });
+    }));
     const node = instance.value;
     const nodes = node.nodeType === 11 ? [...node.childNodes] : [node as ChildNode];
 

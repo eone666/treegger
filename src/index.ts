@@ -35,6 +35,6 @@ export function createElement(tag: unknown, props?: object | null, ...children: 
 }
 export const component = makeComponent as <P>(fn: Component<P>, props: P) => Tree;
 export const debug = wrapDebug as (tree: Tree | ListTree | Node, options?: DebugOptions) => DebugTree;
-export const html = template as (strings: TemplateStringsArray, ...values: unknown[]) => Tree;
+export const html = template;
 export const jsx = createJsx as (tag: string | Component<Record<string, unknown>>, props: Record<string, unknown> | null, key?: Key) => Tree | ListTree;
 export const mount = mountTree as (tree: Tree | ListTree | Node | DebugTree, target: Node) => () => void;

@@ -1,4 +1,4 @@
-import { component, html, mount, onUnmount, signal } from "../dist/index.js";
+import { computed, component, html, mount, onUnmount, signal } from "treegger";
 
 const visible = signal(true);
 
@@ -13,8 +13,8 @@ function KeyListener() {
 }
 
 mount(html`
-  <button onclick=${() => { visible.value = !visible.value; }}>
-    ${() => visible.value ? "Stop listening" : "Start listening"}
+  <button onClick=${() => { visible.value = !visible.value; }}>
+    ${computed(() => visible.value ? "Stop listening" : "Start listening")}
   </button>
-  ${() => visible.value ? component(KeyListener) : null}
+  ${computed(() => visible.value ? component(KeyListener) : null)}
 `, document.querySelector("#app"));

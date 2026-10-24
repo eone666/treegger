@@ -1,4 +1,4 @@
-import { html, mount, ref, signal } from "../dist/index.js";
+import { computed, html, mount, ref, signal } from "treegger";
 
 const todos = signal([]);
 const input = ref();
@@ -13,14 +13,14 @@ function add(event) {
 }
 
 mount(html`
-  <form onsubmit=${add}>
+  <form onSubmit=${add}>
     <input ref=${input} placeholder="New todo">
     <button>Add</button>
   </form>
-  <ul><Each items=${todos} fallback=${() => html`<li>No todos yet</li>`}>
+  <ul><Each items=${todos} fallback=${computed(() => html`<li>No todos yet</li>`)}>
     ${todo => html`<li key=${todo.id}>
       ${todo.title}
-      <button onclick=${() => { todos.value = todos.value.filter(item => item.id !== todo.id); }}>Remove</button>
+      <button onClick=${() => { todos.value = todos.value.filter(item => item.id !== todo.id); }}>Remove</button>
     </li>`}
   </Each></ul>
 `, document.querySelector("#app"));

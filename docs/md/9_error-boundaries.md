@@ -22,15 +22,15 @@ import { html } from "treegger";
 const view = html`
   <ErrorBoundary fallback=${(error, reset) => html`
     <p>${String(error)}</p>
-    <button onclick=${reset}>Retry</button>
+    <button onClick=${reset}>Retry</button>
   `}>
-    <button onclick=${() => { throw new Error("Failed"); }}>Throw</button>
+    <button onClick=${() => { throw new Error("Failed"); }}>Throw</button>
   </ErrorBoundary>
 `;
 ```
 
 The failing branch is disposed before the fallback is mounted. Errors thrown by a fallback can reach an outer boundary. If there is no boundary, they propagate as errors.
 
-An event handler that returns a rejected native Promise is also reported to its boundary. Errors from unrelated browser callbacks or asynchronous work outside Treegger's handlers are outside the boundary's scope; handle those where they occur.
+Event handlers supplied directly or through a signal/computed source use the same error boundary. Errors thrown while selecting a reactive handler, an invalid selected value, synchronous callback errors, and rejected native Promises are reported to that boundary. Errors from unrelated browser callbacks or asynchronous work outside Treegger's handlers are outside the boundary's scope; handle those where they occur.
 
 See [error-boundary.js](https://github.com/eone666/treegger/blob/master/examples/error-boundary.js) and [error-boundary.tsx](https://github.com/eone666/treegger/blob/master/examples/error-boundary.tsx).

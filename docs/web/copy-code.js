@@ -27,7 +27,7 @@ async function copyText(text) {
 document.addEventListener("click", async event => {
   const button = event.target instanceof Element ? event.target.closest("[data-copy-code]") : null;
   if (!(button instanceof HTMLButtonElement)) return;
-  const code = button.parentElement?.querySelector("pre > code");
+  const code = button.closest("[data-code-block]")?.querySelector("pre > code");
   if (!code) return;
 
   try {

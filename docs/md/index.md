@@ -12,13 +12,13 @@ import { html, mount, signal } from "treegger";
 const count = signal(0);
 
 mount(html`
-  <button onclick=${() => count.value++}>
+  <button onClick=${() => count.value++}>
     Clicks: ${count}
   </button>
 `, document.querySelector("#app"));
 ```
 
-The library includes computed values, nested reactive stores, components, keyed lists, lifecycle cleanup, error boundaries, and `Preserve` for hiding a branch while retaining its DOM and state.
+The library includes computed values, nested reactive stores, components, keyed lists, lifecycle cleanup, error boundaries, and `Preserve` for detaching a branch while retaining its DOM nodes and state.
 
 ## Start here
 
@@ -27,7 +27,7 @@ The library includes computed values, nested reactive stores, components, keyed 
 3. [Reactivity](3_reactivity.md) — signals, computed values, effects, scheduling, and cleanup.
 4. [Stores](4_stores.md) — nested reactive objects, arrays, and computed fields.
 5. [Conditional rendering](5_conditional-rendering.md) — switching branches and disposing removed components.
-6. [Preserve](6_preserve.md) — hide a branch while keeping its DOM and state.
+6. [Preserve](6_preserve.md) — detach and reattach a branch while retaining its nodes and state.
 7. [Lists](7_lists.md) — `Each`, keys, nullable items, and fallback content.
 8. [Refs and lifecycle](8_refs-and-lifecycle.md) — DOM refs, `scope`, `onUnmount`, and disposal.
 9. [Error boundaries](9_error-boundaries.md) — fallback and reset.

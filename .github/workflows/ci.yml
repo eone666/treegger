@@ -17,6 +17,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test
 
@@ -35,7 +36,7 @@ jobs:
       - run: npm ci
       - name: Validate version and release notes
         run: node scripts/check-release.mjs
-      - run: npm run build:package
+      - run: npm run package:build
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

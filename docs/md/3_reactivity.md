@@ -43,6 +43,12 @@ doubled.dispose();
 
 Like a signal, a computed value has a `.value` property. Read it in ordinary JavaScript or inside an effect. The calculation runs when `.value` is read and recalculates after a dependency changes. Reading a computed value inside an effect or rendering binding subscribes that consumer to updates. Read-only computed values warn if assigned at runtime; their TypeScript `.value` property is read-only.
 
+Computed results are compared with `Object.is`. Effects, rendering bindings, and downstream computations skip their work when the result stays the same; their existing cleanup and DOM remain intact. This also applies to chains of computed values. A consumer that reads another changed signal directly still reruns for that signal.
+
+Computed values can contain primitives, objects, arrays, functions, or renderable trees. Objects, arrays, functions, and trees are compared by reference. Functions can be held as data but cannot be rendered as children; use a component or return a Treegger tree from the computed getter. Mutating an ordinary object returned by a computed value does not make its fields reactive; use signals or a store for reactive state. Keep computed getters free of subscriptions and other side effects.
+
+To render a computed value, pass the computed object as a child, such as `{doubled}` or `${doubled}`. It can also return JSX, an HTML template, an array of children, or `null`; see [conditional rendering with computed values](5_conditional-rendering.md#using-computed).
+
 A computed value can also define a setter:
 
 ```js
@@ -82,40 +88,56 @@ An effect created inside a component or `scope` is stopped when that owner is di
 
 ## Reactive rendering
 
-Insert a signal or computed value as a child for direct reactive text. Use a function for expressions that read reactive values:
-
-A function passed as a child or reactive prop creates a **local reactive binding**. Treegger runs it, tracks the signals and computed values it reads, and reruns it when those dependencies change. It is similar to an implicit computation for that one DOM location. Each binding runs its own function; it does not expose a reusable `.value` or cache a result for other locations. Use `computed()` when several places need to share one cached derived value.
+Insert a signal or computed object as a child. Wrap derived expressions in `computed()` explicitly. Plain functions are not reactive children or DOM props; passing one there throws a `TypeError` without invoking it.
 
 ```jsx
 <p>{count}</p>                            {/* updates */}
 <p>{count.value}</p>                      {/* snapshot; does not update */}
-<p>{() => `Count: ${count.value}`}</p>    {/* updates */}
+<p>{computed(() => `Count: ${count.value}`)}</p>    {/* updates */}
 <p>{doubled}</p>                          {/* computed value updates */}
 <p>{doubled.value}</p>                    {/* snapshot; does not update */}
-<p>{count} × 2 = {() => count.value * 2}</p>
+<p>{count} × 2 = {computed(() => count.value * 2)}</p>
 ```
 
 ```js
 html`<p>${count}</p>`;                           // updates
 html`<p>${count.value}</p>`;                     // snapshot; does not update
-html`<p>${() => `Count: ${count.value}`}</p>`;   // updates
+html`<p>${computed(() => `Count: ${count.value}`)}</p>`;   // updates
 html`<p>${doubled}</p>`;                         // computed value updates
 html`<p>${doubled.value}</p>`;                   // snapshot; does not update
-html`<p>${count} × 2 = ${() => count.value * 2}</p>`;
+html`<p>${count} × 2 = ${computed(() => count.value * 2)}</p>`;
 ```
 
-Reading `.value` creates a subscription only while a reactive function runs, such as an effect, computed getter, or rendering function. JSX expressions and template interpolations are evaluated while constructing the tree, so passing their already-read values does not make them reactive.
+Reading `.value` creates a subscription only while a reactive function runs, such as an effect, computed getter, or a rendering binding reading a signal or computed. JSX expressions and template interpolations are evaluated while constructing the tree, so passing their already-read values does not make them reactive.
 
 When `doubled` changes, each binding displaying it updates its own real DOM text node. Treegger does not recreate the parent element or rerun its component. If an expression returns different elements instead of text, Treegger replaces that branch.
 
-For conditional rendering, return a branch or `null` from the binding function:
+For conditional rendering, return a branch or `null` from a computed getter:
 
 ```jsx
-<section>{() => visible.value ? <Panel /> : null}</section>
+<section>{computed(() => visible.value ? <Panel /> : null)}</section>
 ```
 
-The function reruns when `visible` changes. The mounted branch is disposed when it is replaced. Writing `{visible.value ? <Panel /> : null}` instead evaluates the condition only while constructing the tree.
+The computed getter reruns when `visible` changes. The mounted branch is disposed when it is replaced. Writing `{visible.value ? <Panel /> : null}` instead evaluates the condition only while constructing the tree.
 
-Reactive props work the same way: `class={ () => active.value ? "on" : "off" }` in JSX, or `class=${() => active.value ? "on" : "off"}` in an HTML template. A plain value is applied once.
+Reactive props work the same way: `class={computed(() => active.value ? "on" : "off")}` in JSX, or `class=${computed(() => active.value ? "on" : "off")}` in an HTML template. A plain value is applied once.
+
+DOM event props accept callbacks or explicit signal/computed sources of callbacks. A plain function is invoked as an event callback; a reactive source is read when the event occurs to select the current callback. Nullish values disable handling. This does not resubscribe the DOM listener. See [Event callbacks](2_rendering.md#event-callbacks) for JSX and HTML examples.
 
 For nested state, see [Stores](4_stores.md).
+
+## Reactive input types
+
+`Reactive<T>` means `Signal<T> | Computed<T>`. Both expose `.value`, so components and effects can read them through one API:
+
+```ts
+import { computed, effect, type Reactive } from "treegger";
+
+function observeCount(count: Reactive<number>) {
+  const doubled = computed(() => count.value * 2);
+  const watcher = effect(() => console.log(count.value, doubled.value));
+  return () => { watcher.stop(); doubled.dispose(); };
+}
+```
+
+Use ordinary types for values that are only needed when a component instance is created. `MaybeReactive<T>` means `T | Reactive<T>` and is used by DOM props and control inputs that accept both static and reactive values. If a custom component chooses to accept that union, narrow it explicitly; there is no automatic prop unwrapping. See [Plain and reactive component props](2_rendering.md#plain-and-reactive-component-props).

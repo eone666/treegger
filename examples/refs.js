@@ -1,7 +1,7 @@
-import { html, mount, ref } from "../dist/index.js";
+import { html, mount, ref } from "treegger";
 
 const input = ref();
 mount(html`
   <input ref=${input} placeholder="Focus me">
-  <button onclick=${() => input.element?.focus()}>Focus input</button>
+  <button onClick=${() => input.element?.focus()}>Focus input</button>
 `, document.querySelector("#app"));

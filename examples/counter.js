@@ -1,24 +1,31 @@
-import { computed, effect, html, mount, signal } from "../dist/index.js";
+import { computed, effect, html, mount, signal } from "treegger";
 
-function Counter({ label }) {
-  const count = signal(0);
+function Counter({ label, initial = 0 }) {
+  const count = signal(initial);
   const doubled = computed(() => count.value * 2);
 
   effect(() => {
     const value = count.value;
-    console.log(`${label}: ${value}`);
-    return () => console.log(`${label}: cleanup for ${value}`);
+    const name = label.value;
+    console.log(`${name}: ${value}`);
+    return () => console.log(`${name}: cleanup for ${value}`);
   });
 
   return html`
     <div>
       <h2>${label}</h2>
-      <button onclick=${() => count.value--}>−</button>
+      <button onClick=${() => count.value--}>−</button>
       <strong>${count}</strong>
-      <button onclick=${() => count.value++}>+</button>
+      <button onClick=${() => count.value++}>+</button>
       <p>Double: ${doubled}</p>
     </div>
   `;
 }
 
-mount(html`<${Counter} label="A" /><${Counter} label="B" />`, document.querySelector("#app"));
+const label = signal("A");
+// label can update; initial is only used when each Counter instance is created.
+mount(html`
+  <${Counter} label=${label} initial=${0} />
+  <${Counter} label=${signal("B")} initial=${10} />
+  <button onClick=${() => { label.value = label.value === "A" ? "First counter" : "A"; }}>Rename A</button>
+`, document.querySelector("#app"));

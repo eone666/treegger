@@ -1,4 +1,4 @@
-import { component, html, mount, onUnmount, ref, signal } from "../dist/index.js";
+import { computed, component, html, mount, onUnmount, ref, signal } from "treegger";
 
 const visible = signal(true);
 const input = ref();
@@ -9,12 +9,12 @@ function Editor() {
 }
 
 mount(html`
-  <button onclick=${() => { visible.value = !visible.value; }}>
-    ${() => visible.value ? "Hide editor" : "Show editor"}
+  <button onClick=${() => { visible.value = !visible.value; }}>
+    ${computed(() => visible.value ? "Hide editor" : "Show editor")}
   </button>
-  ${() => visible.value
+  ${computed(() => visible.value
     ? component(Editor)
-    : html`<p>Editor is hidden</p>`}
+    : html`<p>Editor is hidden</p>`)}
 `, document.querySelector("#app"));
 
 // input.element is null while the Editor branch is hidden.

@@ -1,81 +1,52 @@
+import { computed } from '../src/index.ts';
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import * as Treegger from '../src/index.ts';
+import { setup, nextFlush, textContent } from './helpers.js';
 
-class MockNode {
-  static TEXT_NODE = 3;
-  static ELEMENT_NODE = 1;
-
-  constructor(type, name = '', data = '') {
-    this.nodeType = type;
-    this.name = name;
-    this.data = data;
-    this.childNodes = [];
-    this.parentNode = null;
-    this.style = {};
-    this.listeners = new Map();
-    this.attributes = new Map();
+test('DOM event props reject invalid static values and accept callbacks or nullish values', () => {
+  const { jsx, mount, document } = setup();
+  const callback = () => {};
+  for (const onClick of ['handler', false, 42, {}]) {
+    assert.throws(() => mount(jsx('button', { onClick }), document.createElement('root')), /must be an event callback/);
   }
+  const target = document.createElement('root');
+  const stop = mount(jsx('button', { onClick: callback, onChange: null, onInput: undefined }), target);
+  assert.equal(target.childNodes[0].listeners.size, 1);
+  stop();
+});
 
-  get parentElement() {
-    return this.parentNode?.nodeType === 1 ? this.parentNode : null;
+test('store leaves built-in objects, class instances, and callbacks intact', async () => {
+  const { store, effect } = setup();
+  class Counter {
+    count = 0;
+    increment() { return ++this.count; }
   }
-
-  get previousSibling() {
-    return this.parentNode?.childNodes[this.parentNode.childNodes.indexOf(this) - 1] ?? null;
-  }
-
-  get nextSibling() {
-    return this.parentNode?.childNodes[this.parentNode.childNodes.indexOf(this) + 1] ?? null;
-  }
-
-  append(...nodes) {
-    for (const node of nodes) this.insertBefore(node, null);
-  }
-
-  insertBefore(node, before) {
-    if (node.nodeType === 11) {
-      for (const child of [...node.childNodes]) this.insertBefore(child, before);
-      return;
-    }
-    node.remove();
-    const index = before ? this.childNodes.indexOf(before) : this.childNodes.length;
-    assert.notEqual(index, -1);
-    this.childNodes.splice(index, 0, node);
-    node.parentNode = this;
-  }
-
-  remove() {
-    if (!this.parentNode) return;
-    const siblings = this.parentNode.childNodes;
-    siblings.splice(siblings.indexOf(this), 1);
-    this.parentNode = null;
-  }
-
-  addEventListener(event, handler) {
-    this.listeners.set(event, handler);
-  }
-
-  removeEventListener(event, handler) {
-    if (this.listeners.get(event) === handler) this.listeners.delete(event);
-  }
-  setAttribute(name, value) { this.attributes.set(name, value); }
-  removeAttribute(name) { this.attributes.delete(name); }
-}
-
-function setup() {
-  const document = {
-    createElement: tag => new MockNode(1, tag),
-    createTextNode: data => new MockNode(3, '', data),
-    createComment: data => new MockNode(8, '', data),
-    createDocumentFragment: () => new MockNode(11)
-  };
-  globalThis.document = document;
-  globalThis.Node = MockNode;
-  return { ...Treegger, document };
-}
-
-const nextFlush = () => new Promise(resolve => setImmediate(resolve));
+  const date = new Date(0);
+  const map = new Map([['key', 1]]);
+  const set = new Set(['key']);
+  const callback = value => value * 2;
+  const instance = new Counter();
+  const state = store({ nested: { date, map, set, callback, instance } });
+  assert.equal(state.nested.date, date);
+  assert.equal(state.nested.date.getTime(), 0);
+  assert.equal(state.nested.map, map);
+  assert.equal(state.nested.map.get('key'), 1);
+  assert.equal(state.nested.set, set);
+  assert.equal(state.nested.set.has('key'), true);
+  assert.equal(state.nested.callback, callback);
+  assert.equal(state.nested.callback(3), 6);
+  assert.equal(state.nested.instance, instance);
+  assert.equal(state.nested.instance.increment(), 1);
+  const seen = [];
+  const job = effect(() => { seen.push(state.nested.date.getTime()); });
+  date.setTime(1);
+  await nextFlush();
+  assert.deepEqual(seen, [0]);
+  state.nested.date = new Date(2);
+  await nextFlush();
+  assert.deepEqual(seen, [0, 2]);
+  job.stop();
+});
 
 test('debug highlights updates only in its mounted tree', async () => {
   const { signal, createElement, debug, mount, document } = setup();
@@ -226,14 +197,14 @@ test('store rejects non-objects and tracks added or deleted fields', async () =>
 });
 
 test('store exposes computed fields and warns on writes to read-only values', async () => {
-  const { store, computed, effect, createElement: h, mount, document } = setup();
+  const { store, effect, createElement: h, mount, document } = setup();
   let calculations = 0;
   const state = store({
     value: 1,
     doubled: computed(() => { calculations++; return state.value * 2; })
   });
   const target = document.createElement('root');
-  const stop = mount(h('p', {}, () => state.doubled), target);
+  const stop = mount(h('p', {}, computed(() => state.doubled)), target);
   const values = [];
   const job = effect(() => { values.push(state.doubled); });
 
@@ -262,7 +233,7 @@ test('store exposes computed fields and warns on writes to read-only values', as
 });
 
 test('writable computed accepts writes through a store', async () => {
-  const { store, computed, effect } = setup();
+  const { store, effect } = setup();
   const state = store({
     value: 2,
     doubled: computed({
@@ -281,7 +252,7 @@ test('writable computed accepts writes through a store', async () => {
 });
 
 test('computed is lazy, cached, and reactive inside JSX-style children', async () => {
-  const { signal, computed, createElement: h, mount, document } = setup();
+  const { signal, createElement: h, mount, document } = setup();
   const count = signal(2);
   let calculations = 0;
   const doubled = computed(() => { calculations++; return count.value * 2; });
@@ -300,8 +271,139 @@ test('computed is lazy, cached, and reactive inside JSX-style children', async (
   doubled.dispose();
 });
 
+test('computed compares results with Object.is for every JavaScript value kind', async () => {
+  const { signal, effect } = setup();
+  const object = {};
+  const array = [];
+  const fn = () => {};
+  const symbol = Symbol('same');
+  for (const value of [undefined, null, false, true, 0, -0, NaN, 1n, 'text', symbol, object, array, fn]) {
+    const source = signal(0);
+    let result = value;
+    let calculations = 0;
+    let runs = 0;
+    let cleanups = 0;
+    const derived = computed(() => { void source.value; calculations++; return result; });
+    const job = effect(() => { assert.ok(Object.is(derived.value, result)); runs++; return () => { cleanups++; }; });
+    source.value++;
+    await nextFlush();
+    assert.equal(calculations, 2);
+    assert.equal(runs, 1);
+    assert.equal(cleanups, 0);
+    result = Symbol('changed');
+    source.value++;
+    await nextFlush();
+    assert.equal(runs, 2);
+    assert.equal(cleanups, 1);
+    job.stop();
+    derived.dispose();
+    assert.equal(cleanups, 2);
+  }
+  const source = signal(0);
+  const signedZero = computed(() => source.value ? -0 : 0);
+  const seen = [];
+  const job = effect(() => { seen.push(signedZero.value); });
+  source.value = 1;
+  await nextFlush();
+  assert.ok(Object.is(seen[0], 0));
+  assert.ok(Object.is(seen[1], -0));
+  job.stop();
+  signedZero.dispose();
+});
+
+test('computed stays lazy, batches changes, and preserves notifications after a synchronous read', async () => {
+  const { signal, effect } = setup();
+  const source = signal(0);
+  let calculations = 0;
+  const parity = computed(() => { calculations++; return source.value % 2; });
+  source.value = 2;
+  await nextFlush();
+  assert.equal(calculations, 0);
+  const seen = [];
+  const job = effect(() => { seen.push(parity.value); });
+  source.value = 4;
+  assert.equal(parity.value, 0);
+  await nextFlush();
+  assert.deepEqual(seen, [0]);
+  source.value = 5;
+  assert.equal(parity.value, 1);
+  await nextFlush();
+  assert.deepEqual(seen, [0, 1]);
+  source.value = 6;
+  source.value = 7;
+  await nextFlush();
+  assert.deepEqual(seen, [0, 1]);
+  assert.equal(calculations, 4);
+  job.stop();
+  parity.dispose();
+});
+
+test('computed switches equal branches and updates chains and diamonds consistently', async () => {
+  const { signal, effect } = setup();
+  const chooseFirst = signal(true);
+  const first = signal(1);
+  const second = signal(1);
+  const selected = computed(() => chooseFirst.value ? first.value : second.value);
+  let outerRuns = 0;
+  const left = computed(() => { outerRuns++; return selected.value * 2; });
+  const right = computed(() => selected.value * 3);
+  const total = computed(() => left.value + right.value);
+  const seen = [];
+  const job = effect(() => { seen.push([selected.value, total.value]); });
+  chooseFirst.value = false;
+  await nextFlush();
+  assert.equal(outerRuns, 1);
+  assert.deepEqual(seen, [[1, 5]]);
+  first.value = 10;
+  await nextFlush();
+  assert.deepEqual(seen, [[1, 5]]);
+  second.value = 2;
+  await nextFlush();
+  assert.deepEqual(seen, [[1, 5], [2, 10]]);
+  assert.equal(outerRuns, 2);
+  job.stop();
+  for (const value of [total, left, right, selected]) value.dispose();
+});
+
+test('computed tracks direct dependencies and effects can update their own dependency', async () => {
+  const { signal, effect } = setup();
+  const source = signal(0);
+  const parity = computed(() => source.value % 2);
+  const seen = [];
+  const job = effect(() => { seen.push([parity.value, source.value]); });
+  source.value = 2;
+  await nextFlush();
+  assert.deepEqual(seen, [[0, 0], [0, 2]]);
+  job.stop();
+  parity.dispose();
+  const count = signal(0);
+  const selfUpdating = effect(() => { if (count.value < 2) count.value++; });
+  await nextFlush();
+  assert.equal(count.value, 2);
+  selfUpdating.stop();
+});
+
+test('a failed computed getter retries without returning a stale cached result', () => {
+  const { signal} = setup();
+  const source = signal(1);
+  let failing = false;
+  const value = computed(() => {
+    const current = source.value;
+    if (failing) throw new Error('retry');
+    return current;
+  });
+  assert.equal(value.value, 1);
+  failing = true;
+  source.value = 2;
+  assert.throws(() => value.value, /retry/);
+  assert.throws(() => value.value, /retry/);
+  failing = false;
+  assert.equal(value.value, 2);
+  value.dispose();
+});
+
 test('computed switches dependencies and ignores plain objects with value', async () => {
-  const { signal, computed, createElement: h, mount, document } = setup();
+  const { signal, createElement: h, mount, document } = setup();
   const chooseFirst = signal(true);
   const first = signal('A');
   const second = signal('B');
@@ -328,7 +430,7 @@ test('a throwing effect unsubscribes and pending work stops on unmount', async (
   const { signal, effect, createElement: h, mount, document } = setup();
   const value = signal(0);
   let calls = 0;
-  assert.throws(() => effect(() => { calls++; value.value; throw new Error('boom'); }), /boom/);
+  assert.throws(() => effect(() => { calls++; void value.value; throw new Error('boom'); }), /boom/);
   value.value = 1;
   await nextFlush();
   assert.equal(calls, 1);
@@ -480,7 +582,7 @@ test('components can return primitive, empty, and reactive child values', async 
   function ReactiveText() {
     renders++;
     onUnmount(() => lifecycle.push('unmounted'));
-    return () => `Count: ${count.value}`;
+    return computed(() => `Count: ${count.value}`);
   }
 
   const target = document.createElement('root');
@@ -512,8 +614,8 @@ test('conditional branch and list replace DOM and dispose refs', async () => {
   const items = signal(['A']);
   const itemRef = ref();
   const target = document.createElement('root');
-  const stop = mount(component(() => h('ul', {}, () => visible.value &&
-    items.value.map((item, index) => h('li', index === 0 ? { ref: itemRef } : {}, item))
+  const stop = mount(component(() => h('ul', {}, computed(() => visible.value &&
+    items.value.map((item, index) => h('li', index === 0 ? { ref: itemRef } : {}, item)))
   )), target);
   const list = target.childNodes[0];
 
@@ -549,9 +651,9 @@ test('JSX conditional rendering switches branches and disposes the hidden compon
 
   const target = document.createElement('root');
   const stop = mount(jsx('section', {
-    children: () => visible.value
+    children: computed(() => visible.value
       ? jsx(Editor, {})
-      : jsx('p', { children: 'Editor is hidden' })
+      : jsx('p', { children: 'Editor is hidden' }))
   }), target);
   const section = target.childNodes[0];
   const firstInput = input.element;
@@ -578,7 +680,225 @@ test('JSX conditional rendering switches branches and disposes the hidden compon
   assert.deepEqual(lifecycle, ['editor removed', 'editor removed']);
 });
 
-test('Preserve hides a branch without replacing its DOM or disposing its scope', async () => {
+test('computed JSX branches preserve DOM and state while the derived condition is unchanged', async () => {
+  const { signal, ref, onUnmount, jsx, mount, document } = setup();
+  const age = signal(20);
+  const eligible = computed(() => age.value >= 18);
+  const input = ref();
+  let instances = 0;
+  let cleanups = 0;
+  function Editor() {
+    instances++;
+    onUnmount(() => { cleanups++; });
+    return jsx('input', { ref: input });
+  }
+  const branch = computed(() => eligible.value ? jsx(Editor, {}) : null);
+  const target = document.createElement('root');
+  const stop = mount(jsx('section', { children: branch }), target);
+  const original = input.element;
+  original.value = 'unsaved draft';
+  age.value = 21;
+  await nextFlush();
+  assert.equal(input.element, original);
+  assert.equal(input.element.value, 'unsaved draft');
+  assert.equal(instances, 1);
+  assert.equal(cleanups, 0);
+  age.value = 17;
+  await nextFlush();
+  assert.equal(input.element, null);
+  assert.equal(cleanups, 1);
+  age.value = 18;
+  await nextFlush();
+  assert.notEqual(input.element, original);
+  assert.equal(instances, 2);
+  stop();
+  assert.equal(input.element, null);
+  assert.equal(cleanups, 2);
+  branch.dispose();
+  eligible.dispose();
+});
+
+test('a boolean computed also preserves a derived conditional branch with an unchanged result', async () => {
+  const { signal, jsx, mount, document } = setup();
+  const count = signal(1);
+  const visible = computed(() => count.value > 0);
+  const target = document.createElement('root');
+  const stop = mount(jsx('section', { children: computed(() => visible.value ? jsx('input', {}) : null) }), target);
+  const input = target.childNodes[0].childNodes.find(node => node.name === 'input');
+  count.value = 2;
+  await nextFlush();
+  assert.equal(target.childNodes[0].childNodes.find(node => node.name === 'input'), input);
+  stop();
+  visible.dispose();
+});
+
+test('computed switches between multiple components and cleans up every replaced branch', async () => {
+  const { signal, jsx, mount, onUnmount, document } = setup();
+  const status = signal('loading');
+  const calls = [];
+  function Loading() {
+    calls.push('mount loading');
+    onUnmount(() => calls.push('unmount loading'));
+    return jsx('p', { children: 'Loading' });
+  }
+  function ErrorMessage() {
+    calls.push('mount error');
+    onUnmount(() => calls.push('unmount error'));
+    return jsx('strong', { children: 'Error' });
+  }
+  function Content() {
+    calls.push('mount content');
+    onUnmount(() => calls.push('unmount content'));
+    return jsx('article', { children: 'Content' });
+  }
+  const screen = computed(() => {
+    switch (status.value) {
+      case 'loading': return jsx(Loading, {});
+      case 'error': return jsx(ErrorMessage, {});
+      default: return jsx(Content, {});
+    }
+  });
+  const target = document.createElement('root');
+  const stop = mount(jsx('main', { children: screen }), target);
+  const main = target.childNodes[0];
+  for (const [state, tag, label] of [['error', 'strong', 'Error'], ['ready', 'article', 'Content'], ['loading', 'p', 'Loading']]) {
+    status.value = state;
+    await nextFlush();
+    const elements = main.childNodes.filter(node => node.nodeType === 1);
+    assert.equal(elements.length, 1);
+    assert.equal(elements[0].name, tag);
+    assert.equal(elements[0].childNodes[0].data, label);
+  }
+  stop();
+  assert.deepEqual(calls, ['mount loading', 'unmount loading', 'mount error', 'unmount error', 'mount content', 'unmount content', 'mount loading', 'unmount loading']);
+  screen.dispose();
+});
+
+test('computed renders primitives, JSX, fragments, arrays, lists, nested reactive values, and DOM nodes', async () => {
+  const { signal, jsx, Fragment, Each, mount, document } = setup();
+  const selected = signal(0);
+  const nested = signal('nested');
+  const items = signal(['one', 'two']);
+  const native = document.createElement('strong');
+  native.append(document.createTextNode('native'));
+  const variants = [
+    ['text', 'text'], [42, '42'], [0, '0'], [3n, '3'],
+    [true, ''], [false, ''], [null, ''], [undefined, ''],
+    [jsx('p', { children: 'jsx' }), 'jsx'],
+    [jsx(Fragment, { children: [jsx('b', { children: 'A' }), jsx('i', { children: 'B' })] }), 'AB'],
+    [[jsx('b', { children: 'array' }), nested], 'arraynested'],
+    [jsx(Each, { items, children: item => jsx('span', { key: item, children: item }) }), 'onetwo'],
+    [computed(() => jsx('p', { children: nested })), 'nested'],
+    [nested, 'nested'],
+    [native, 'native'],
+    [jsx(() => 'component text', {}), 'component text']
+  ];
+  const content = computed(() => variants[selected.value][0]);
+  const target = document.createElement('root');
+  const stop = mount(jsx('section', { children: content }), target);
+  const section = target.childNodes[0];
+  for (let index = 0; index < variants.length; index++) {
+    selected.value = index;
+    await nextFlush();
+    assert.equal(textContent(section), variants[index][1], `variant ${index}`);
+    assert.equal(target.childNodes[0], section);
+  }
+  selected.value = 11;
+  await nextFlush();
+  items.value = ['three'];
+  await nextFlush();
+  assert.equal(textContent(section), 'three');
+  selected.value = 12;
+  await nextFlush();
+  nested.value = 'updated';
+  await nextFlush();
+  assert.equal(textContent(section), 'updated');
+  stop();
+  content.dispose();
+  assert.equal(target.childNodes.length, 0);
+});
+
+test('shared computed JSX creates independent component scopes and owned computed values stop on unmount', async () => {
+  const { signal, onUnmount, jsx, mount, document } = setup();
+  const visible = signal(true);
+  const count = signal(0);
+  let instances = 0;
+  let cleanups = 0;
+  let calculations = 0;
+  const branch = computed(() => visible.value ? jsx(Editor, {}) : null);
+  function Editor() {
+    instances++;
+    const label = computed(() => { calculations++; return `Count: ${count.value}`; });
+    onUnmount(() => { cleanups++; });
+    return jsx('p', { children: label });
+  }
+  const first = document.createElement('root');
+  const second = document.createElement('root');
+  const stopFirst = mount(jsx('section', { children: branch }), first);
+  const stopSecond = mount(jsx('section', { children: branch }), second);
+  assert.equal(instances, 2);
+  assert.notEqual(first.childNodes[0].childNodes[0], second.childNodes[0].childNodes[0]);
+  stopFirst();
+  count.value = 1;
+  await nextFlush();
+  assert.equal(calculations, 3);
+  assert.equal(cleanups, 1);
+  visible.value = false;
+  await nextFlush();
+  assert.equal(cleanups, 2);
+  count.value = 2;
+  await nextFlush();
+  assert.equal(calculations, 3);
+  stopSecond();
+  branch.dispose();
+});
+
+test('computed validation errors reach ErrorBoundary and cycles remain rejected', async () => {
+  const { signal, jsx, ErrorBoundary, mount, document } = setup();
+  const fail = signal(false);
+  const branch = computed(() => {
+    if (fail.value) throw new Error('computed failed');
+    return jsx('p', { children: 'safe' });
+  });
+  const target = document.createElement('root');
+  let reset;
+  const stop = mount(jsx(ErrorBoundary, {
+    fallback: (error, retry) => { reset = retry; return jsx('strong', { children: error.message }); },
+    children: jsx('section', { children: branch })
+  }), target);
+  fail.value = true;
+  await nextFlush();
+  assert.equal(target.childNodes.find(node => node.name === 'strong').childNodes[0].data, 'computed failed');
+  fail.value = false;
+  reset();
+  assert.equal(target.childNodes.find(node => node.name === 'section').childNodes[0].childNodes[0].data, 'safe');
+  stop();
+  branch.dispose();
+  const cycle = computed(() => cycle.value);
+  assert.throws(() => cycle.value, /computed cannot depend on itself/);
+  cycle.dispose();
+});
+
+test('computed preserves an identical tree factory and replaces a newly returned JSX tree', async () => {
+  const { signal, jsx, mount, document } = setup();
+  const source = signal(0);
+  const stableTree = jsx('input', {});
+  const stable = computed(() => { void source.value; return stableTree; });
+  const fresh = computed(() => jsx('input', { value: source.value }));
+  const target = document.createElement('root');
+  const stop = mount(jsx('section', { children: [stable, fresh] }), target);
+  const inputs = () => target.childNodes[0].childNodes.filter(node => node.name === 'input');
+  const before = inputs();
+  source.value++;
+  await nextFlush();
+  assert.equal(inputs()[0], before[0]);
+  assert.notEqual(inputs()[1], before[1]);
+  assert.equal(inputs()[1].value, '1');
+  stop();
+  stable.dispose(); fresh.dispose();
+});
+
+test('Preserve detaches a branch without replacing its DOM or disposing its scope', async () => {
   const { signal, ref, effect, onUnmount, jsx, Preserve, mount, document } = setup();
   const visible = signal(false);
   const count = signal(0);
@@ -598,10 +918,10 @@ test('Preserve hides a branch without replacing its DOM or disposing its scope',
     when: visible,
     children: jsx(Editor, {})
   }), target);
-  const wrapper = target.childNodes[0];
   const firstInput = input.element;
 
-  assert.equal(wrapper.style.display, 'none');
+  assert.equal(target.childNodes.filter(node => node.nodeType === 1).length, 0);
+  assert.equal(firstInput.parentNode.nodeType, 11);
   assert.equal(firstInput?.name, 'input');
   assert.equal(instances, 1);
   assert.deepEqual(calls, ['count 0']);
@@ -613,20 +933,193 @@ test('Preserve hides a branch without replacing its DOM or disposing its scope',
 
   visible.value = true;
   await nextFlush();
-  assert.equal(wrapper.style.display, 'contents');
+  assert.equal(firstInput.parentNode, target);
   assert.equal(input.element, firstInput);
   assert.equal(instances, 1);
   assert.deepEqual(calls, ['count 0', 'count 1']);
 
   visible.value = false;
   await nextFlush();
-  assert.equal(wrapper.style.display, 'none');
+  assert.equal(firstInput.parentNode.nodeType, 11);
+  assert.equal(target.childNodes.filter(node => node.nodeType === 1).length, 0);
   assert.equal(input.element, firstInput);
   assert.deepEqual(calls, ['count 0', 'count 1']);
 
   stop();
   assert.equal(input.element, null);
+  assert.equal(firstInput.parentNode, null);
+  assert.equal(target.childNodes.length, 0);
   assert.deepEqual(calls, ['count 0', 'count 1', 'unmount']);
+});
+
+test('nested Preserve branches update while detached and restore the same nodes in order', async () => {
+  const { signal, ref, jsx, Fragment, Preserve, mount, document } = setup();
+  const outer = signal(true);
+  const inner = signal(true);
+  const showLabel = signal(true);
+  const label = signal('first');
+  const input = ref();
+  const target = document.createElement('root');
+  const stop = mount(jsx(Fragment, { children: [
+    jsx('b', { children: 'before' }),
+    jsx(Preserve, { when: computed(() => outer.value), children: [
+      computed(() => showLabel.value ? jsx('span', { children: label }) : null),
+      jsx(Preserve, { when: computed(() => inner.value), children: jsx('input', { ref: input }) })
+    ] }),
+    jsx('b', { children: 'after' })
+  ] }), target);
+  const firstInput = input.element;
+  const names = () => target.childNodes.filter(node => node.nodeType === 1).map(node => node.name);
+  assert.deepEqual(names(), ['b', 'span', 'input', 'b']);
+  outer.value = false;
+  await nextFlush();
+  assert.deepEqual(names(), ['b', 'b']);
+  inner.value = false;
+  showLabel.value = false;
+  await nextFlush();
+  label.value = 'updated';
+  showLabel.value = true;
+  await nextFlush();
+  outer.value = true;
+  await nextFlush();
+  assert.deepEqual(names(), ['b', 'span', 'b']);
+  assert.equal(target.childNodes.find(node => node.name === 'span').childNodes[0].data, 'updated');
+  inner.value = true;
+  await nextFlush();
+  assert.deepEqual(names(), ['b', 'span', 'input', 'b']);
+  assert.equal(input.element, firstInput);
+  stop();
+  assert.equal(input.element, null);
+  assert.equal(target.childNodes.length, 0);
+});
+
+test('Each moves, replaces, and removes complete component fragments including reactive children', async () => {
+  const { signal, jsx, Fragment, Each, onUnmount, mount, document } = setup();
+  const a = { id: 'a' }, b = { id: 'b' }, c = { id: 'c' }, d = { id: 'd' };
+  const items = signal([a, b, c, d]);
+  const expanded = signal(true);
+  const disposed = [];
+  function Row({ item }) {
+    onUnmount(() => disposed.push(item));
+    return jsx(Fragment, { children: [
+      jsx('li', { children: item.id }),
+      computed(() => expanded.value ? jsx('li', { children: `${item.id}+` }) : null)
+    ] });
+  }
+  const target = document.createElement('root');
+  const stop = mount(jsx('ul', { children: [
+    jsx('li', { children: 'before' }),
+    jsx(Each, { items, children: item => jsx(Row, { key: item.id, item }) }),
+    jsx('li', { children: 'after' })
+  ] }), target);
+  const list = target.childNodes[0];
+  const labels = () => list.childNodes.filter(node => node.name === 'li').map(node => node.childNodes[0].data);
+  assert.deepEqual(labels(), ['before', 'a', 'a+', 'b', 'b+', 'c', 'c+', 'd', 'd+', 'after']);
+  const firstA = list.childNodes.find(node => node.name === 'li' && node.childNodes[0].data === 'a');
+  items.value = [d, b, c, a];
+  await nextFlush();
+  assert.deepEqual(labels(), ['before', 'd', 'd+', 'b', 'b+', 'c', 'c+', 'a', 'a+', 'after']);
+  assert.equal(disposed.length, 0);
+  expanded.value = false;
+  await nextFlush();
+  items.value = [b, c, a, d];
+  await nextFlush();
+  assert.deepEqual(labels(), ['before', 'b', 'c', 'a', 'd', 'after']);
+  expanded.value = true;
+  await nextFlush();
+  items.value = [b, a, d];
+  await nextFlush();
+  assert.deepEqual(labels(), ['before', 'b', 'b+', 'a', 'a+', 'd', 'd+', 'after']);
+  assert.deepEqual(disposed, [c]);
+  assert.ok(list.childNodes.includes(firstA));
+  items.value = [b, { id: 'a' }, d];
+  await nextFlush();
+  assert.deepEqual(labels(), ['before', 'b', 'b+', 'a', 'a+', 'd', 'd+', 'after']);
+  assert.equal(firstA.parentNode, null);
+  assert.deepEqual(disposed, [c, a]);
+  items.value = [...items.value, { id: 'e' }];
+  await nextFlush();
+  assert.deepEqual(labels().slice(-3), ['e', 'e+', 'after']);
+  items.value = [];
+  await nextFlush();
+  assert.deepEqual(labels(), ['before', 'after']);
+  assert.equal(disposed.length, 6);
+  assert.equal(list.childNodes.length, 3);
+  stop();
+});
+
+test('Each supports initially empty component results and removes updated fallback fragments', async () => {
+  const { signal, jsx, Each, mount, document } = setup();
+  const visible = signal(false);
+  const items = signal([1, 2]);
+  function Row({ item }) { return computed(() => visible.value ? jsx('li', { children: item }) : null); }
+  const target = document.createElement('root');
+  const stop = mount(jsx('ul', { children: jsx(Each, {
+    items,
+    children: item => jsx(Row, { key: item, item }),
+    fallback: computed(() => visible.value ? jsx('li', { children: 'empty' }) : null)
+  }) }), target);
+  const list = target.childNodes[0];
+  const labels = () => list.childNodes.filter(node => node.name === 'li').map(node => node.childNodes[0].data);
+  visible.value = true;
+  await nextFlush();
+  assert.deepEqual(labels(), ['1', '2']);
+  items.value = [2, 1];
+  await nextFlush();
+  assert.deepEqual(labels(), ['2', '1']);
+  items.value = [];
+  await nextFlush();
+  assert.deepEqual(labels(), ['empty']);
+  visible.value = false;
+  await nextFlush();
+  visible.value = true;
+  await nextFlush();
+  items.value = [3];
+  await nextFlush();
+  assert.deepEqual(labels(), ['3']);
+  stop();
+});
+
+test('SVG namespaces survive components, reactive branches, lists, and foreignObject', async () => {
+  const { signal, jsx, Each, ErrorBoundary, mount, document } = setup();
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const htmlNS = 'http://www.w3.org/1999/xhtml';
+  const show = signal(false);
+  const items = signal([1]);
+  const bad = signal(false);
+  function Circle() { return jsx('circle', { r: 5, strokeWidth: 2, className: 'dot' }); }
+  const target = document.createElement('root');
+  const stop = mount(jsx('svg', { viewBox: '0 0 10 10', children: [
+    jsx(Circle, {}),
+    computed(() => show.value ? jsx('path', { d: 'M0 0L1 1' }) : null),
+    jsx(Each, { items, children: item => jsx('circle', { key: item, r: item }) }),
+    jsx('foreignObject', { children: jsx('div', { children: jsx('svg', { children: jsx('circle', {}) }) }) }),
+    jsx(ErrorBoundary, { fallback: jsx('text', { children: 'error' }), children: computed(() => {
+      if (bad.value) throw new Error('svg error');
+      return jsx('g', {});
+    }) })
+  ] }), target);
+  const svg = target.childNodes[0];
+  assert.equal(svg.namespaceURI, svgNS);
+  assert.equal(svg.attributes.get('viewBox'), '0 0 10 10');
+  assert.equal(svg.childNodes[0].attributes.get('stroke-width'), '2');
+  assert.equal(svg.childNodes[0].attributes.get('class'), 'dot');
+  const foreignObject = svg.childNodes.find(node => node.name === 'foreignObject');
+  assert.equal(foreignObject.namespaceURI, svgNS);
+  assert.equal(foreignObject.childNodes[0].namespaceURI, htmlNS);
+  assert.equal(foreignObject.childNodes[0].childNodes[0].namespaceURI, svgNS);
+  show.value = true;
+  items.value = [1, 2];
+  bad.value = true;
+  await nextFlush();
+  for (const node of svg.childNodes.filter(node => node.nodeType === 1)) assert.equal(node.namespaceURI, svgNS);
+  assert.equal(svg.childNodes.find(node => node.name === 'path').namespaceURI, svgNS);
+  assert.equal(svg.childNodes.find(node => node.name === 'text').namespaceURI, svgNS);
+  const svgTarget = document.createElementNS(svgNS, 'svg');
+  const stopNested = mount(jsx('lineargradient', { gradientunits: 'userSpaceOnUse' }), svgTarget);
+  assert.equal(svgTarget.childNodes[0].name, 'linearGradient');
+  assert.equal(svgTarget.childNodes[0].attributes.get('gradientUnits'), 'userSpaceOnUse');
+  stopNested(); stop();
 });
 
 test('removed component stops its effects', async () => {
@@ -641,10 +1134,10 @@ test('removed component stops its effects', async () => {
       calls.push(`run ${current}`);
       return () => calls.push(`cleanup ${current}`);
     });
-    return h('span', {}, () => value.value);
+    return h('span', {}, computed(() => value.value));
   }
 
-  const stop = mount(h('div', {}, () => visible.value && component(Child)), document.createElement('root'));
+  const stop = mount(h('div', {}, computed(() => visible.value && component(Child))), document.createElement('root'));
   visible.value = false;
   await nextFlush();
   value.value = 1;
@@ -658,7 +1151,7 @@ test('removed branch releases event listeners', async () => {
   const { signal, createElement: h, mount, document } = setup();
   const visible = signal(true);
   const target = document.createElement('root');
-  const stop = mount(h('div', {}, () => visible.value && h('button', { onClick() {} }, 'Click')), target);
+  const stop = mount(h('div', {}, computed(() => visible.value && h('button', { onClick() {} }, 'Click'))), target);
   const button = target.childNodes[0].childNodes.find(node => node.name === 'button');
 
   assert.equal(button.listeners.has('click'), true);
@@ -672,7 +1165,7 @@ test('reactive text updates the same text node', async () => {
   const { signal, createElement: h, mount, document } = setup();
   const count = signal(1);
   const target = document.createElement('root');
-  const stop = mount(h('p', {}, () => `Count: ${count.value}`), target);
+  const stop = mount(h('p', {}, computed(() => `Count: ${count.value}`)), target);
   const text = target.childNodes[0].childNodes[0];
 
   count.value = 2;
@@ -686,7 +1179,7 @@ test('updating a reactive prop does not rewrite static props', async () => {
   const { signal, createElement: h, mount, document } = setup();
   const value = signal('first');
   const target = document.createElement('root');
-  const stop = mount(h('div', { id: 'fixed', title: () => value.value }), target);
+  const stop = mount(h('div', { id: 'fixed', title: computed(() => value.value) }), target);
   const element = target.childNodes[0];
   let staticWrites = 0;
   const original = element.setAttribute.bind(element);
@@ -838,7 +1331,7 @@ test('clearing a keyed list disposes effects and refs inside its rows', async ()
   const rowRef = ref();
   const target = document.createElement('root');
   const stop = mount(h('ul', {}, h(Each, { items }, item =>
-    h('li', { key: item.id, ref: rowRef }, () => label.value)
+    h('li', { key: item.id, ref: rowRef }, computed(() => label.value))
   )), target);
   const oldRow = rowRef.element;
   const oldText = oldRow.childNodes[0];
@@ -859,7 +1352,7 @@ test('nullable list shows fallback and clears its ref when items appear', async 
   const fallbackRef = ref();
   const target = document.createElement('root');
   const stop = mount(h('ul', {}, h(Each,
-    { items, fallback: () => h('li', { ref: fallbackRef }, 'Empty') },
+    { items, fallback: computed(() => h('li', { ref: fallbackRef }, 'Empty')) },
     item => h('li', { key: item.id }, item.label)
   )), target);
   const rows = () => target.childNodes[0].childNodes.filter(node => node.name === 'li');
@@ -883,7 +1376,7 @@ test('Each accepts a JSX render child and switches its fallback', async () => {
   const target = document.createElement('root');
   const list = jsx(Each, {
     items,
-    fallback: () => h('li', {}, 'Empty'),
+    fallback: computed(() => h('li', {}, 'Empty')),
     children: item => h('li', { key: item.id }, item.label)
   });
   const stop = mount(h('ul', {}, list), target);
@@ -910,7 +1403,7 @@ test('a signal outside the component scope unmounts a listener and remounts it',
   }
 
   const target = document.createElement('root');
-  const stop = mount(h('div', {}, () => visible.value ? component(KeyListener) : null), target);
+  const stop = mount(h('div', {}, computed(() => visible.value ? component(KeyListener) : null)), target);
   const paragraph = () => target.childNodes[0].childNodes.find(node => node.name === 'p');
 
   assert.equal(listeners.size, 1);
@@ -932,4 +1425,23 @@ test('a signal outside the component scope unmounts a listener and remounts it',
   stop();
   assert.equal(listeners.size, 0);
   assert.equal(removed, 2);
+});
+
+test('store getters and setters read and update reactive properties through this', async () => {
+  const { store, effect } = setup();
+  const state = store({
+    count: 1,
+    get doubled() { return this.count * 2; },
+    set doubled(value) { this.count = value / 2; }
+  });
+  const seen = [];
+  const job = effect(() => { seen.push(state.doubled); });
+  state.count = 2;
+  await nextFlush();
+  assert.equal(seen.at(-1), 4);
+  state.doubled = 10;
+  await nextFlush();
+  assert.equal(seen.at(-1), 10);
+  assert.equal(state.count, 5);
+  job.stop();
 });

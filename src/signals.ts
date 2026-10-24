@@ -1,4 +1,4 @@
-import { activeEffect, activeScope, schedule, setActiveEffect, type Job, type Dependency } from "./core";
+import { activeEffect, activeScope, schedule, setActiveEffect, trackDependency, dependenciesChanged, untrack, type Job, type Dependency } from "./core";
 import { writableComputedBrand } from "./types";
 import type { Computed, WritableComputed } from "./types";
 
@@ -14,15 +14,12 @@ import type { Computed, WritableComputed } from "./types";
 
   function signal<T>(initial: T) {
     let value = initial;
-    const subscribers: Dependency = new Set();
+    const subscribers: Dependency = Object.assign(new Set<Job>(), { version: 0 });
 
     return {
       [SIGNAL]: true,
       get value() {
-        if (activeEffect) {
-          subscribers.add(activeEffect);
-          activeEffect.deps.add(subscribers);
-        }
+        trackDependency(subscribers);
 
         return value;
       },
@@ -31,6 +28,7 @@ import type { Computed, WritableComputed } from "./types";
         if (Object.is(value, next)) return;
 
         value = next;
+        subscribers.version++;
 
         for (const job of [...subscribers]) {
           if (job.notify) job.notify();
@@ -61,11 +59,11 @@ import type { Computed, WritableComputed } from "./types";
       const membership = new Map<PropertyKey, ReturnType<typeof signal<boolean>>>();
       const keys = signal(0);
       const property = (key: PropertyKey) => {
-        if (!properties.has(key)) properties.set(key, signal(Reflect.get(target, key)));
+        if (!properties.has(key)) properties.set(key, signal(Object.getOwnPropertyDescriptor(target, key)?.get ? undefined : Reflect.get(target, key)));
         return properties.get(key)!;
       };
       const notify = (key: PropertyKey) => {
-        if (properties.has(key)) properties.get(key)!.value = Reflect.get(target, key);
+        if (properties.has(key)) properties.get(key)!.value = untrack(() => Reflect.get(target, key, proxy));
         if (membership.has(key)) membership.get(key)!.value = Reflect.has(target, key);
       };
 
@@ -74,18 +72,21 @@ import type { Computed, WritableComputed } from "./types";
           if (!Object.hasOwn(object, key) && Reflect.has(object, key)) {
             return Reflect.get(object, key, receiver);
           }
-          const value = property(key).value;
+          const trackedValue = property(key).value;
+          const value = Object.getOwnPropertyDescriptor(object, key)?.get
+            ? Reflect.get(object, key, receiver) : trackedValue;
           return isSignal(value) && !arrayIndex(object, key) ? value.value : isObject(value) ? wrap(value) : value;
         },
-        set(object, key, value) {
-          const previous = Object.hasOwn(object, key) ? Reflect.get(object, key) : undefined;
+        set(object, key, value, receiver) {
+          const descriptor = Object.getOwnPropertyDescriptor(object, key);
+          const previous = descriptor && "value" in descriptor ? descriptor.value : undefined;
           if (isSignal(previous) && !isSignal(value) && !arrayIndex(object, key)) {
             previous.value = value;
             return true;
           }
           const hadKey = Object.hasOwn(object, key);
           const oldLength = Array.isArray(object) ? object.length : 0;
-          const success = Reflect.set(object, key, value && typeof value === "object" ? unwrap(value) : value);
+          const success = Reflect.set(object, key, value && typeof value === "object" ? unwrap(value) : value, receiver);
           if (!success) return false;
 
           notify(key);
@@ -117,7 +118,7 @@ import type { Computed, WritableComputed } from "./types";
           return membership.get(key)!.value;
         },
         ownKeys(object) {
-          keys.value;
+          void keys.value;
           return Reflect.ownKeys(object);
         }
       });
@@ -140,12 +141,14 @@ import type { Computed, WritableComputed } from "./types";
     }
     let value!: T;
     let dirty = true;
+    let initialized = false;
+    let failed = false;
     let calculating = false;
-    const subscribers: Dependency = new Set();
+    const subscribers: Dependency = Object.assign(new Set<Job>(), { version: 0, refresh });
     const owner = activeScope;
     const job: Job = {
       active: true,
-      deps: new Set<Dependency>(),
+      deps: new Map<Dependency, number>(),
       notify() {
         if (dirty || !job.active) return;
         dirty = true;
@@ -157,7 +160,7 @@ import type { Computed, WritableComputed } from "./types";
       stop() {
         if (!job.active) return;
         job.active = false;
-        for (const dep of job.deps) dep.delete(job);
+        for (const dep of job.deps.keys()) dep.delete(job);
         job.deps.clear();
         owner?.effects?.delete(job);
         subscribers.clear();
@@ -165,29 +168,40 @@ import type { Computed, WritableComputed } from "./types";
     };
     if (owner) (owner.effects ??= new Set()).add(job);
 
+    function refresh() {
+      if (calculating) throw new Error("computed cannot depend on itself");
+      if (!dirty) return;
+      calculating = true;
+      const previousEffect = activeEffect;
+      try {
+        if (initialized && !failed && !dependenciesChanged(job)) {
+          dirty = false;
+          return;
+        }
+        for (const dep of job.deps.keys()) dep.delete(job);
+        job.deps.clear();
+        setActiveEffect(job);
+        const next = getter();
+        if (!initialized || !Object.is(value, next)) subscribers.version++;
+        value = next;
+        initialized = true;
+        failed = false;
+        dirty = false;
+      } catch (error) {
+        failed = true;
+        throw error;
+      } finally {
+        calculating = false;
+        setActiveEffect(previousEffect);
+      }
+    }
+
     const result = {
       [SIGNAL]: true,
       [COMPUTED]: true,
       get value() {
-        if (calculating) throw new Error("computed cannot depend on itself");
-        if (activeEffect && activeEffect !== job) {
-          subscribers.add(activeEffect);
-          activeEffect.deps.add(subscribers);
-        }
-        if (dirty) {
-          for (const dep of job.deps) dep.delete(job);
-          job.deps.clear();
-          const previousEffect = activeEffect;
-          setActiveEffect(job);
-          calculating = true;
-          try {
-            value = getter();
-            dirty = false;
-          } finally {
-            calculating = false;
-            setActiveEffect(previousEffect);
-          }
-        }
+        refresh();
+        trackDependency(subscribers);
         return value;
       },
       set value(next) {
@@ -205,7 +219,7 @@ import type { Computed, WritableComputed } from "./types";
 
   function resolve(value: unknown): unknown {
     if (isSignal(value)) return value.value;
-    if (typeof value === "function") return value();
+    if (typeof value === "function") throw new TypeError("Reactive functions are unsupported; wrap the expression in computed()");
     return value;
   }
 

@@ -1,13 +1,14 @@
-import { computed, effect, mount, signal } from "treegger";
+import { computed, effect, mount, signal, type Reactive } from "treegger";
 
-function Counter({ label }: { label: string }) {
-  const count = signal(0);
+function Counter({ label, initial = 0 }: { label: Reactive<string>; initial?: number }) {
+  const count = signal(initial);
   const doubled = computed(() => count.value * 2);
 
   effect(() => {
     const value = count.value;
-    console.log(`${label}: ${value}`);
-    return () => console.log(`${label}: cleanup for ${value}`);
+    const name = label.value;
+    console.log(`${name}: ${value}`);
+    return () => console.log(`${name}: cleanup for ${value}`);
   });
 
   return <div>
@@ -19,4 +20,10 @@ function Counter({ label }: { label: string }) {
   </div>;
 }
 
-mount(<><Counter label="A" /><Counter label="B" /></>, document.getElementById("app")!);
+const label = signal("A");
+// label can update; initial is only used when each Counter instance is created.
+mount(<>
+  <Counter label={label} initial={0} />
+  <Counter label={signal("B")} initial={10} />
+  <button onClick={() => { label.value = label.value === "A" ? "First counter" : "A"; }}>Rename A</button>
+</>, document.getElementById("app")!);

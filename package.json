@@ -1,6 +1,6 @@
 {
   "name": "treegger",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A small reactive DOM library with HTML templates and JSX",
   "license": "MIT",
   "type": "module",
@@ -38,21 +38,28 @@
     "html-templates"
   ],
   "scripts": {
-    "build:package": "npm run build:package:module && npm run build:package:browser && npm run build:package:types",
-    "build:package:module": "rolldown -c rolldown.module.config.mjs",
-    "build:package:browser": "rolldown -c rolldown.browser.config.mjs",
-    "build:package:types": "rolldown -c rolldown.types.config.mjs",
-    "build:docs": "node scripts/build-docs.mjs",
+    "package:build": "npm run package:build:module && npm run package:build:browser && npm run package:build:types",
+    "package:build:module": "rolldown -c rolldown.module.config.mjs",
+    "package:build:browser": "rolldown -c rolldown.browser.config.mjs",
+    "package:build:types": "rolldown -c rolldown.types.config.mjs",
+    "docs:build": "node scripts/build-docs.mjs",
+    "docs:preview": "serve docs/web/dist",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
-    "typecheck:watch": "tsc -p tsconfig.json --watch"
+    "typecheck:watch": "tsc -p tsconfig.json --watch",
+    "lint": "oxlint --deny-warnings",
+    "lint:fix": "oxlint --fix --deny-warnings"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
     "@tailwindcss/typography": "^0.5.20",
+    "jsdom": "^29.1.1",
     "markdown-it": "^15.0.3",
+    "oxlint": "^1.89.0",
     "rolldown": "1.2.15",
     "rolldown-plugin-dts": "^0.28.8",
+    "serve": "^14.2.6",
+    "shiki": "^4.5.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "vitest": "^5.0.5"

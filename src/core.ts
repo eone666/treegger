@@ -1,5 +1,8 @@
   export type Cleanup = () => void;
-  export type Dependency = Set<Job>;
+  export interface Dependency extends Set<Job> {
+    version: number;
+    refresh?: () => void;
+  }
   export interface Owner {
     parent: Owner | null;
     children: Set<Owner> | null;
@@ -13,13 +16,27 @@
   export interface Job {
     active: boolean;
     owner?: Owner | null;
-    deps: Set<Dependency>;
+    deps: Map<Dependency, number>;
     notify?: () => void;
     run?: () => void;
     stop(): void;
   }
   let activeEffect: Job | null = null;
   let activeScope: Owner | null = null;
+
+  function trackDependency(dependency: Dependency) {
+    if (!activeEffect) return;
+    dependency.add(activeEffect);
+    activeEffect.deps.set(dependency, dependency.version);
+  }
+
+  function dependenciesChanged(job: Job) {
+    for (const [dependency, version] of job.deps) {
+      dependency.refresh?.();
+      if (dependency.version !== version) return true;
+    }
+    return false;
+  }
 
   function handleError(error: unknown, owner: Owner | null | undefined) {
     let currentError = error;
@@ -171,14 +188,24 @@
     const job: Job & { hasRun: boolean; cleanup: Cleanup | null } = {
       active: true,
       owner,
-      deps: new Set<Dependency>(),
+      deps: new Map<Dependency, number>(),
       hasRun: false,
       cleanup: null,
 
       run() {
         if (!job.active) return;
 
-        for (const dep of job.deps) {
+        if (job.hasRun) {
+          try {
+            // Resolve lazy computations before disposing an unchanged consumer's branch or cleanup.
+            if (!dependenciesChanged(job)) return;
+          } catch (error) {
+            job.stop();
+            throw error;
+          }
+        }
+
+        for (const dep of job.deps.keys()) {
           dep.delete(job);
         }
 
@@ -216,7 +243,7 @@
         job.active = false;
         queue.delete(job);
 
-        for (const dep of job.deps) {
+        for (const dep of job.deps.keys()) {
           dep.delete(job);
         }
 
@@ -251,4 +278,4 @@
   function setActiveEffect(value: Job | null) { activeEffect = value; }
   function setActiveScope(value: Owner | null) { activeScope = value; }
 
-export { activeEffect, activeScope, setActiveEffect, setActiveScope, handleError, flash, schedule, scope, addCleanup, onUnmount, effect, untrack };
+export { activeEffect, activeScope, setActiveEffect, setActiveScope, trackDependency, dependenciesChanged, handleError, flash, schedule, scope, addCleanup, onUnmount, effect, untrack };

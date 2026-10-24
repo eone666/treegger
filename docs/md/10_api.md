@@ -19,10 +19,11 @@ Read [Reactivity](3_reactivity.md) and [Stores](4_stores.md) for dependency trac
 | Export | Purpose |
 | --- | --- |
 | `html` | Tagged template: `html` followed by a template literal. Returns a Treegger tree. |
+| `html.with(components)` | Returns a new HTML template tag with named components. Registries can be extended without changing the original tag. See [Rendering](2_rendering.md#named-components-with-html-with). |
 | `createElement` | Creates an element or component tree from a tag, props, and children. JSX users normally do not call it. |
 | `component` | Wraps a component function and props as a tree in plain JavaScript. |
 | `Fragment` | Groups children without a visible wrapper. |
-| `Preserve` | Keeps a mounted branch in the DOM while `when` toggles its visibility. |
+| `Preserve` | Detaches and reattaches the same DOM nodes according to `when`, retaining component state and effects. |
 | `Each` | Renders a keyed list with optional fallback. |
 | `ErrorBoundary` | Catches errors in its owned child branch and renders fallback content. |
 | `mount` | `mount(tree, target)` appends a tree or DOM node and returns an unmount function. |
@@ -45,7 +46,7 @@ The `key` prop identifies a row to `Each`. `ref` attaches a DOM reference. Neith
 import { debug, html, mount, signal } from "treegger";
 
 const count = signal(0);
-mount(debug(html`<button onclick=${() => { count.value++; }}>${count}</button>`,
+mount(debug(html`<button onClick=${() => { count.value++; }}>${count}</button>`,
   { showUpdates: true }), document.getElementById("app"));
 ```
 
@@ -68,8 +69,10 @@ See [Refs and lifecycle](8_refs-and-lifecycle.md).
 | `TreeggerElement` | Tree from JSX or `html`; `Tree | ListTree`. |
 | `TreeggerNode` | Any value accepted as element content or a component result; alias of `Child`. |
 | `Tree`, `ListTree`, `Child`, `PrimitiveChild` | Lower-level tree and child types. |
+| `HtmlTemplate`, `HtmlComponentRegistry` | HTML template tag with `.with()` and its named component registry. |
 | `Component<P>` | Function component type returning `TreeggerNode`. |
-| `ElementProps<E>`, `EventHandler<E>`, `Reactive<T>` | Element prop and reactive binding types. |
+| `ElementProps<E>`, `Reactive<T>`, `MaybeReactive<T>` | `Reactive<T>` is `Signal<T> | Computed<T>`; `MaybeReactive<T>` also allows a static `T`. |
+| `EventHandler<E>`, `EventProp<E>` | A plain event callback, or a callback/signal/computed/nullish event prop. Reactive event sources are read at dispatch without resubscribing the listener. |
 | `Key` | String, number, or symbol key. |
 | `ListSource<T>`, `EachProps<T>` | Accepted list source and `Each` props. |
 | `ErrorBoundaryProps` | Boundary children and fallback. |
@@ -86,4 +89,4 @@ const HtmlComponent: MyComponent = () => html`<p>Hello</p>`;
 const JsxComponent: MyComponent = () => <p>Hello</p>;
 ```
 
-Use `TreeggerNode` for children, fallback content, and component return types. It includes `TreeggerElement`, primitives, signals, reactive child functions, and arrays.
+Use `TreeggerNode` for children, fallback content, and component return types. It includes `TreeggerElement`, primitives, signals, computed values, and arrays. Plain functions are not renderable children.

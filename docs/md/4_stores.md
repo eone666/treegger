@@ -15,11 +15,52 @@ state.user.name = "Grace";
 state.tasks.push({ title: "Publish" });
 ```
 
-Nested plain objects and arrays are wrapped when accessed. Reading a field inside an effect or computed calculation tracks that field. Reading array length, indexed items, membership with `in`, and keys with `Object.keys` can also create dependencies. Replacing a nested object causes consumers to follow the replacement on their next run.
+There is no fixed nesting-depth limit in `store`. Nested plain objects and arrays are wrapped lazily when accessed, rather than traversing the entire state when the store is created. Reading a field inside an effect or computed calculation tracks that field at any depth. Reading array length, indexed items, membership with `in`, and keys with `Object.keys` can also create dependencies. Replacing a nested object causes consumers to follow the replacement on their next run.
 
 `state.tasks.push(item)` goes through the array proxy: it writes a new index and changes `length`, so effects that read the affected array properties run again. A plain array inside `signal` behaves differently: `items.value.push(item)` does not assign to `.value` and does not notify effects. Use `items.value = [...items.value, item]` with a signal.
 
-`store` accepts plain objects and arrays. Other objects such as `Date` and `Map` are kept as ordinary values, not deep reactive proxies. A module-level store can be imported by multiple components as shared state.
+`store` accepts plain objects and arrays. Nested `Date`, `Map`, `Set`, and class instances remain ordinary values: their internal mutations are not tracked. Replacing the store field holding such a value is reactive. A module-level store can be imported by multiple components as shared state.
+
+## Deep nesting
+
+Use ordinary property access even when several objects or arrays separate a field from the store root:
+
+```js
+const preferences = store({
+  profile: {
+    settings: {
+      theme: { color: "green" },
+      shortcuts: [{ keys: ["Control", "K"] }]
+    }
+  }
+});
+
+effect(() => console.log(preferences.profile.settings.theme.color));
+preferences.profile.settings.theme.color = "blue"; // effect logs the new color
+
+effect(() => console.log(preferences.profile.settings.shortcuts[0].keys.length));
+preferences.profile.settings.shortcuts[0].keys.push("Enter"); // effect logs 3
+```
+
+Write through the store proxy so changes are tracked. For rendering, keep the deep field read inside `computed`, such as `{computed(() => preferences.profile.settings.theme.color)}`. The [store examples](11_examples.md) demonstrate changing and rendering a deeply nested field in both HTML templates and TSX.
+
+## Object getters and setters
+
+Ordinary object accessors also work. Their `this` is the reactive store, so reads inside a getter and writes inside a setter are tracked:
+
+```js
+const state = store({
+  count: 1,
+  get doubled() { return this.count * 2; },
+  set doubled(next) { this.count = next / 2; }
+});
+
+effect(() => console.log(state.doubled));
+state.count = 2;   // effect logs 4
+state.doubled = 10; // updates count to 5; effect logs 10
+```
+
+Unlike `computed`, an ordinary getter runs on every access and does not cache its result.
 
 ## Signals and computed fields
 
@@ -65,14 +106,14 @@ DOM refs also remain objects when stored in a store.
 
 ## Rendering store fields
 
-Wrap store field reads in a function so Treegger can subscribe:
+Wrap store field reads in `computed()` so Treegger can subscribe:
 
 ```jsx
-<p>{() => app.visits}</p>
+<p>{computed(() => app.visits)}</p>
 ```
 
 ```js
-html`<p>${() => app.visits}</p>`;
+html`<p>${computed(() => app.visits)}</p>`;
 ```
 
 Passing `app.visits` directly evaluates it while constructing the tree, before the reactive rendering effect reads it. See [Reactivity](3_reactivity.md) for the dependency model.

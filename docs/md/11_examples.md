@@ -1,6 +1,6 @@
 # Examples
 
-Each pair shows the same feature with an `html` tagged template and with JSX. These files are code snippets. Run `npm run build:package` before using the `.js` examples from this repository; TSX examples need a TypeScript-aware automatic JSX transform.
+Each pair shows the same feature with an `html` tagged template and with JSX. These files are code snippets. Run `npm run package:build` before using the `.js` examples from this repository; TSX examples need a TypeScript-aware automatic JSX transform.
 
 | Feature | HTML template | JSX |
 | --- | --- | --- |
@@ -12,4 +12,7 @@ Each pair shows the same feature with an `html` tagged template and with JSX. Th
 | Refs | [refs.js](https://github.com/eone666/treegger/blob/master/examples/refs.js) | [refs.tsx](https://github.com/eone666/treegger/blob/master/examples/refs.tsx) |
 | Lifecycle cleanup | [unmount.js](https://github.com/eone666/treegger/blob/master/examples/unmount.js) | [unmount.tsx](https://github.com/eone666/treegger/blob/master/examples/unmount.tsx) |
 | Error boundary | [error-boundary.js](https://github.com/eone666/treegger/blob/master/examples/error-boundary.js) | [error-boundary.tsx](https://github.com/eone666/treegger/blob/master/examples/error-boundary.tsx) |
+| Reactive event handlers | [events.js](https://github.com/eone666/treegger/blob/master/examples/events.js) | [events.tsx](https://github.com/eone666/treegger/blob/master/examples/events.tsx) |
 | Fragments | [fragments.js](https://github.com/eone666/treegger/blob/master/examples/fragments.js) | [fragments.tsx](https://github.com/eone666/treegger/blob/master/examples/fragments.tsx) |
+
+For named component tags without JSX, see [html-with.js](https://github.com/eone666/treegger/blob/master/examples/html-with.js) and the [`html.with()` guide](2_rendering.md#named-components-with-html-with).

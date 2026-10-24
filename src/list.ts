@@ -3,14 +3,14 @@ import { resolve } from "./signals";
 import { appendChild, isFactory, KEY, FRAGMENT } from "./render";
 import type { Owner } from "./core";
 import type { Key } from "./types";
+import { activeNamespace, withNamespace, nodeRange, moveRange, removeRange, type NodeRange } from "./dom";
 
-interface ListRecord {
+interface ListRecord extends NodeRange {
   item: unknown;
   key: Key;
   owner: Owner;
-  nodes: ChildNode[];
 }
-interface FallbackRecord { owner: Owner; nodes: ChildNode[] }
+interface FallbackRecord extends NodeRange { owner: Owner }
 interface ListDescriptor {
   source: unknown;
   render: (item: unknown) => unknown;
@@ -18,6 +18,7 @@ interface ListDescriptor {
 }
 
   function appendList(parent: Node & ParentNode, list: ListDescriptor, owner: Owner | null) {
+    const namespace = activeNamespace;
     const marker = document.createComment("treegger-list");
     parent.append(marker);
     let records = new Map<Key, ListRecord>();
@@ -26,29 +27,29 @@ interface ListDescriptor {
     let fallbackRecord: FallbackRecord | null = null;
 
     function createRecord(item: unknown): ListRecord {
-      const rendered = scope(() => untrack(() => {
+      const rendered = withNamespace(namespace, () => scope(() => untrack(() => {
         const tree = list.render(item);
         if (!isFactory(tree) || tree[KEY] == null || tree[FRAGMENT]) {
           throw new Error("each items must return an element with a key prop");
         }
-        return { key: tree[KEY]!, node: tree() as ChildNode };
-      }), false);
+        return { key: tree[KEY]!, range: nodeRange(tree()) };
+      }), false));
       return {
         item,
         key: rendered.value.key,
         owner: rendered.owner,
-        nodes: [rendered.value.node]
+        ...rendered.value.range
       };
     }
 
     function disposeRecord(record: ListRecord | FallbackRecord, removeNode = true) {
-      record.owner.dispose();
-      if (removeNode) for (const node of record.nodes) node.remove();
+      try { record.owner.dispose(); }
+      finally { if (removeNode) removeRange(record); }
     }
 
     function clearRecords() {
       if (records.size === 0) return;
-      const first = orderedRecords[0].nodes[0];
+      const first = orderedRecords[0].first;
       const parentNode = marker.parentNode;
       const canReplaceChildren = typeof parentNode?.replaceChildren === "function" &&
         first === parentNode.firstChild && marker === parentNode.lastChild;
@@ -57,7 +58,7 @@ interface ListDescriptor {
         parentNode.replaceChildren(marker);
       } else {
         for (const record of records.values()) {
-          for (const node of record.nodes) node.remove();
+          removeRange(record);
         }
       }
       records.clear();
@@ -78,13 +79,13 @@ interface ListDescriptor {
       if (items.length === 0) {
         clearRecords();
         if (list.fallback != null && !fallbackRecord) {
-          const rendered = scope(() => {
+          const rendered = withNamespace(namespace, () => scope(() => {
             const fragment = document.createDocumentFragment();
             untrack(() => appendChild(fragment, list.fallback, activeScope));
-            return { fragment, nodes: [...fragment.childNodes] };
-          });
+            return { fragment, range: nodeRange(fragment) };
+          }));
           marker.parentNode!.insertBefore(rendered.value.fragment, marker);
-          fallbackRecord = { owner: rendered.owner, nodes: rendered.value.nodes };
+          fallbackRecord = { owner: rendered.owner, ...rendered.value.range };
         }
         return;
       }
@@ -114,7 +115,7 @@ interface ListDescriptor {
             newKeys.add(record.key);
           }
           const fragment = document.createDocumentFragment();
-          for (const record of appended) fragment.append(record.nodes[0]);
+          for (const record of appended) moveRange(record, fragment, null);
           marker.parentNode!.insertBefore(fragment, marker);
         } catch (error) {
           for (const record of appended) disposeRecord(record);
@@ -141,12 +142,10 @@ interface ListDescriptor {
           const firstRecord = orderedRecords[firstIndex];
           const secondRecord = orderedRecords[secondIndex];
           if (firstRecord.item === items[secondIndex] && secondRecord.item === items[firstIndex]) {
-            const firstNode = firstRecord.nodes[0];
-            const secondNode = secondRecord.nodes[0];
-            const afterSecond = secondNode.nextSibling;
+            const afterSecond = secondRecord.last.nextSibling;
             const container = marker.parentNode!;
-            container.insertBefore(secondNode, firstNode);
-            container.insertBefore(firstNode, afterSecond);
+            moveRange(secondRecord, container, firstRecord.first);
+            moveRange(firstRecord, container, afterSecond);
             orderedRecords[firstIndex] = secondRecord;
             orderedRecords[secondIndex] = firstRecord;
             return;
@@ -179,12 +178,12 @@ interface ListDescriptor {
         if (samePositions) {
           const container = marker.parentNode!;
           for (const { index, old, record } of replacements) {
-            const oldNode = old.nodes[0];
-            const before = oldNode.nextSibling;
+            const oldNode = old.first;
+            const before = old.last.nextSibling;
             old.owner.dispose();
-            container.insertBefore(record.nodes[0], oldNode.parentNode === container
+            moveRange(record, container, oldNode.parentNode === container
               ? oldNode : before?.parentNode === container ? before : marker);
-            oldNode.remove();
+            removeRange(old);
             records.set(record.key, record);
             recordsByItem.delete(old.item);
             recordsByItem.set(record.item, record);
@@ -235,6 +234,8 @@ interface ListDescriptor {
       // surviving row moves at most once, even for large permutations.
       const oldPositions = new Map(orderedRecords.map((record, index) => [record, index]));
       const tails = [];
+      // Allocate the index buffer without per-element callbacks in this hot path.
+      // oxlint-disable-next-line unicorn/no-new-array
       const previous = new Array(ordered.length).fill(-1);
       for (let index = 0; index < ordered.length; index++) {
         const position = oldPositions.get(ordered[index]);
@@ -257,10 +258,10 @@ interface ListDescriptor {
       let before = marker;
       for (let index = ordered.length - 1; index >= 0; index--) {
         const record = ordered[index];
-        if (!stable.has(index) && record.nodes[0].nextSibling !== before) {
-          marker.parentNode!.insertBefore(record.nodes[0], before);
+        if (!stable.has(index) && record.last.nextSibling !== before) {
+          moveRange(record, marker.parentNode!, before);
         }
-        before = record.nodes[0];
+        before = record.first;
       }
 
       records = next;

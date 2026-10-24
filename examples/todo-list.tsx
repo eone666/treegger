@@ -1,4 +1,4 @@
-import { Each, mount, ref, signal } from "treegger";
+import { computed, Each, mount, ref, signal } from "treegger";
 
 interface Todo { id: number; title: string }
 
@@ -21,7 +21,7 @@ mount(<>
     <input ref={input} placeholder="New todo" />
     <button>Add</button>
   </form>
-  <ul><Each items={todos} fallback={() => <li>No todos yet</li>}>
+  <ul><Each items={todos} fallback={computed(() => <li>No todos yet</li>)}>
     {todo => <li key={todo.id}>
       {todo.title}
       <button onClick={() => { todos.value = todos.value.filter(item => item.id !== todo.id); }}>Remove</button>

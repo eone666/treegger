@@ -2,50 +2,53 @@
 
 ## Requirements
 
-Treegger needs a browser DOM. The package exposes tree-shakeable ESM for bundlers and a standalone browser ES module. It has no runtime dependencies. The steps below use a local checkout.
-
-For development in this repository:
+Treegger needs a browser DOM. The package exposes tree-shakeable ESM for bundlers and a standalone browser ES module. It has no runtime dependencies. Install the package in your application:
 
 ```sh
-npm ci
-npm run build:package
+npm install treegger
 ```
 
-The build creates `dist/`. HTML template examples import `../dist/index.js`. An app consuming the package imports from `treegger`.
+The examples import from `treegger`. A bundler resolves this package name; for native browser modules, see [Without a bundler](#without-a-bundler). For development from a local checkout, see the [contributing guide](https://github.com/eone666/treegger/blob/master/.github/CONTRIBUTING.md).
 
 ## First counter
 
 Add `<div id="app"></div>` to your page and load this module:
 
 ```js
-import { html, mount, signal } from "../dist/index.js";
+import { html, mount, signal } from "treegger";
 
 const count = signal(0);
 
 const unmount = mount(html`
-  <button onclick=${() => count.value++}>Count: ${count}</button>
+  <button onClick=${() => count.value++}>Count: ${count}</button>
 `, document.querySelector("#app"));
 ```
 
 `signal(0)` holds the number. Reading `count.value` inside a reactive expression subscribes to changes. In the template, inserting the signal itself creates a reactive text binding. Calling `unmount()` removes the mounted nodes and disposes their effects, listeners, and refs.
 
-In an application that installs Treegger as a package, change the import to `from "treegger"`.
 
 ## Without a bundler
 
-Copy `dist/treegger.browser.min.js` to your site and import it from a module script:
+Copy `dist/treegger.browser.min.js` to your site and map `"treegger"` to its URL with an import map:
 
 ```html
 <div id="app"></div>
+<script type="importmap">
+  {
+    "imports": {
+      "treegger": "./treegger.browser.min.js"
+    }
+  }
+</script>
 <script type="module">
-  import { html, mount, signal } from "./treegger.browser.min.js";
+  import { html, mount, signal } from "treegger";
   const count = signal(0);
-  mount(html`<button onclick=${() => count.value++}>Count: ${count}</button>`,
+  mount(html`<button onClick=${() => count.value++}>Count: ${count}</button>`,
     document.querySelector("#app"));
 </script>
 ```
 
-The minified browser file contains the whole library. A browser imports it by URL; the bare specifier `"treegger"` requires a bundler or import map. Use the npm package with a bundler when you want unused exports removed.
+The minified browser file contains the whole library. Define the import map before module scripts that import Treegger, and adjust the mapped URL to match where you host the file. All examples use `from "treegger"`: a bundler resolves the installed package, while the browser uses the import map. Use a bundler when you want unused exports removed.
 
 ## JSX option
 

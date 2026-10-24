@@ -1,9 +1,10 @@
-import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import MarkdownIt from "markdown-it";
+import { bundledThemes, createHighlighter } from "shiki";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const markdownDir = path.join(repo, "docs", "md");
@@ -44,11 +45,49 @@ await rm(outputDir, { recursive: true, force: true });
 await mkdir(assetsDir, { recursive: true });
 await mkdir(path.join(outputDir, "source"), { recursive: true });
 
-const markdown = new MarkdownIt({ html: false, linkify: true, typographer: false });
+const { default: baseCodeTheme } = await bundledThemes["github-dark"]();
+const codeTheme = {
+  ...baseCodeTheme,
+  name: "treegger-dark",
+  colors: { ...baseCodeTheme.colors, "editor.background": "#0e1914", "editor.foreground": "#d4e2d9" },
+  tokenColors: [
+    ...baseCodeTheme.tokenColors,
+    { scope: ["comment", "punctuation.definition.comment"], settings: { foreground: "#9aafa4" } },
+    { scope: ["string", "string punctuation.section.embedded"], settings: { foreground: "#a6d8b5" } },
+    { scope: ["keyword", "storage"], settings: { foreground: "#c4b5e5" } },
+    { scope: ["entity.name.function", "support.function"], settings: { foreground: "#e5ca96" } },
+    { scope: ["constant.numeric", "constant.language", "support.type"], settings: { foreground: "#a6d1e5" } },
+    { scope: ["entity.name.tag"], settings: { foreground: "#6fc69d" } }
+  ]
+};
+const highlighter = await createHighlighter({
+  themes: [codeTheme],
+  langs: ["javascript", "typescript", "jsx", "tsx", "html", "css", "json", "bash", "yaml", "markdown"]
+});
+const loadedLanguages = new Set(highlighter.getLoadedLanguages());
+const markdown = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: false,
+  highlight(code, language) {
+    const lang = language.toLowerCase();
+    // Unknown or omitted languages retain MarkdownIt's escaped plain-text rendering.
+    if (!loadedLanguages.has(lang)) return "";
+    return highlighter.codeToHtml(code, { lang, theme: "treegger-dark" });
+  }
+});
 function withCopyButton(render) {
-  return (...args) => `<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
-    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
-    ${render(...args)}</div>`;
+  return (tokens, index, ...args) => {
+    const language = tokens[index].info.trim().split(/\s+/)[0].toLowerCase();
+    const labels = { js: "JavaScript", javascript: "JavaScript", ts: "TypeScript", typescript: "TypeScript", jsx: "JSX", tsx: "TSX", html: "HTML", css: "CSS", json: "JSON", sh: "Shell", bash: "Bash" };
+    const label = Object.hasOwn(labels, language) ? labels[language] : language || "Text";
+    return `<div data-code-block>
+    <div class="code-block-header">
+      <span data-code-language>${htmlEscape(label)}</span>
+      <button type="button" data-copy-code aria-label="Copy code">Copy</button>
+    </div>
+    ${render(tokens, index, ...args)}</div>`;
+  };
 }
 markdown.renderer.rules.fence = withCopyButton(markdown.renderer.rules.fence);
 markdown.renderer.rules.code_block = withCopyButton(markdown.renderer.rules.code_block);
@@ -120,32 +159,33 @@ for (const page of pages) {
 
 await copyFile(path.join(repo, "assets", "treegger-logo.svg"), path.join(assetsDir, "treegger-logo.svg"));
 await copyFile(path.join(repo, "docs", "web", "copy-code.js"), path.join(assetsDir, "copy-code.js"));
+await cp(path.join(repo, "docs", "web", "fonts"), path.join(assetsDir, "fonts"), { recursive: true });
 
 function pageLinks(current) {
   return rendered.map(page => `<a href="${page.file}" class="block rounded-lg px-3 py-2 text-sm transition-colors ${page.slug === current.slug
-    ? "bg-brand/10 font-medium text-brand-light"
-    : "text-slate-400 hover:bg-white/5 hover:text-slate-100"}"${page.slug === current.slug ? ' aria-current="page"' : ""}>${htmlEscape(page.title)}</a>`).join("\n");
+    ? "bg-brand/20 font-medium text-[#a6e1c1] ring-1 ring-inset ring-brand/35"
+    : "text-muted hover:bg-white/5 hover:text-slate-100"}"${page.slug === current.slug ? ' aria-current="page"' : ""}>${htmlEscape(page.title)}</a>`).join("\n");
 }
 
 function sidebar(page) {
   return `<a class="mb-9 flex items-center gap-3 rounded-lg px-2 text-white no-underline" href="index.html" aria-label="Treegger documentation home">
     <img src="./assets/treegger-logo.svg" width="34" height="34" alt="">
-    <span class="text-xl font-bold tracking-tight">treegger<small class="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-light/70">documentation</small></span>
+    <span class="text-xl font-bold tracking-tight">treegger<small class="block text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-light/90">documentation</small></span>
   </a>
-  <div class="mb-3 px-3 text-[11px] font-semibold tracking-[0.17em] text-brand-light/65">GUIDES & REFERENCE</div>
+  <div class="mb-3 px-3 text-[11px] font-semibold tracking-[0.17em] text-brand-light/90">GUIDES & REFERENCE</div>
   <nav class="flex flex-col gap-0.5" aria-label="Pages">${pageLinks(page)}</nav>`;
 }
 
 for (const [index, page] of rendered.entries()) {
   const previous = rendered[index - 1];
   const next = rendered[index + 1];
-  const toc = page.headings.length ? `<div class="sticky top-24 border-l border-white/10 pl-5">
-    <div class="mb-4 text-[11px] font-semibold tracking-[0.15em] text-brand-light/70">ON THIS PAGE</div>
-    <nav class="flex flex-col gap-3" aria-label="Page sections">${page.headings.map(heading => `<a class="text-sm text-slate-500 hover:text-brand-light" href="#${heading.id}">${htmlEscape(heading.title)}</a>`).join("\n")}</nav>
+  const toc = page.headings.length ? `<div class="sticky top-24 border-l border-white/15 pl-5">
+    <div class="mb-4 text-[11px] font-semibold tracking-[0.15em] text-brand-light/90">ON THIS PAGE</div>
+    <nav class="flex flex-col gap-3" aria-label="Page sections">${page.headings.map(heading => `<a class="text-sm text-muted hover:text-brand-light" href="#${heading.id}">${htmlEscape(heading.title)}</a>`).join("\n")}</nav>
   </div>` : "";
   const adjacent = [
-    previous && `<a class="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5" href="${previous.file}"><span class="text-xs text-slate-500">← Previous</span><strong class="font-medium text-brand-light">${htmlEscape(previous.title)}</strong></a>`,
-    next && `<a class="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5 sm:col-start-2" href="${next.file}"><span class="text-xs text-slate-500">Next →</span><strong class="font-medium text-brand-light">${htmlEscape(next.title)}</strong></a>`
+    previous && `<a class="flex flex-col gap-1 rounded-xl border border-white/15 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5" href="${previous.file}"><span class="text-xs text-muted">← Previous</span><strong class="font-medium text-brand-light">${htmlEscape(previous.title)}</strong></a>`,
+    next && `<a class="flex flex-col gap-1 rounded-xl border border-white/15 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5 sm:col-start-2" href="${next.file}"><span class="text-xs text-muted">Next →</span><strong class="font-medium text-brand-light">${htmlEscape(next.title)}</strong></a>`
   ].filter(Boolean).join("\n");
   const document = `<!doctype html>
 <html lang="en">
@@ -162,17 +202,17 @@ for (const [index, page] of rendered.entries()) {
 <body class="min-h-screen bg-[#0b1210] font-sans text-slate-300 antialiased" data-page="${htmlEscape(page.slug)}">
   <a class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-slate-950" href="#content">Skip to content</a>
   <div class="min-h-screen lg:grid lg:grid-cols-[268px_minmax(0,1fr)]">
-    <aside class="hidden border-r border-white/10 bg-[#0e1913] px-5 pb-6 pt-7 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto" aria-label="Documentation navigation">${sidebar(page)}</aside>
+    <aside class="hidden border-r border-white/15 bg-[#0e1913] px-5 pb-6 pt-7 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto" aria-label="Documentation navigation">${sidebar(page)}</aside>
     <div class="flex min-w-0 min-h-screen flex-col">
-      <details class="border-b border-white/10 bg-[#0e1913] px-5 py-3 lg:hidden"><summary class="cursor-pointer text-sm font-medium text-brand-light">Documentation menu</summary><nav class="mt-4 flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto" aria-label="Pages">${pageLinks(page)}</nav></details>
+      <details class="border-b border-white/15 bg-[#0e1913] px-5 py-3 lg:hidden"><summary class="cursor-pointer text-sm font-medium text-brand-light">Documentation menu</summary><nav class="mt-4 flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto" aria-label="Pages">${pageLinks(page)}</nav></details>
       <div class="mx-auto grid w-full max-w-[1450px] flex-1 grid-cols-1 gap-12 px-5 pb-24 pt-10 sm:px-8 lg:px-12 xl:grid-cols-[minmax(0,1fr)_210px] xl:gap-16">
         <div class="min-w-0">
-          <main id="content" class="prose prose-invert max-w-none prose-headings:scroll-mt-24 prose-headings:text-slate-50 prose-a:text-brand-light prose-a:decoration-brand/40 hover:prose-a:text-brand-light prose-strong:text-slate-100 prose-code:text-brand-light prose-pre:rounded-xl prose-pre:border prose-pre:border-white/10 prose-pre:bg-[#101b16] prose-th:text-brand-light prose-td:text-slate-300">${page.content}</main>
-          <nav class="mt-16 grid gap-3 border-t border-white/10 pt-8 sm:grid-cols-2" aria-label="Adjacent pages">${adjacent}</nav>
+          <main id="content" class="prose prose-invert max-w-none prose-headings:scroll-mt-24 prose-headings:text-slate-50 prose-a:text-brand-light prose-a:decoration-brand/40 hover:prose-a:text-brand-light prose-strong:text-slate-100 prose-code:text-brand-light prose-pre:rounded-xl prose-pre:border prose-pre:border-white/15 prose-pre:bg-[#101b16] prose-th:text-brand-light prose-td:text-slate-300">${page.content}</main>
+          <nav class="mt-16 grid gap-3 border-t border-white/15 pt-8 sm:grid-cols-2" aria-label="Adjacent pages">${adjacent}</nav>
         </div>
         <aside class="hidden xl:block" aria-label="On this page">${toc}</aside>
       </div>
-      <footer class="border-t border-white/10 px-5 py-6 text-sm text-slate-500 sm:px-8 lg:px-12">
+      <footer class="border-t border-white/15 px-5 py-6 text-sm text-muted sm:px-8 lg:px-12">
         <div class="mx-auto flex max-w-[1450px] flex-wrap items-center justify-between gap-3">
           <span class="font-semibold text-slate-300">Treegger</span>
           <div class="flex flex-wrap items-center gap-5"><a class="hover:text-brand-light" href="https://github.com/eone666/treegger" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a><a class="hover:text-brand-light" href="https://github.com/eone666/treegger/blob/master/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a></div>
@@ -186,6 +226,8 @@ for (const [index, page] of rendered.entries()) {
 `;
   await writeFile(path.join(outputDir, page.file), document);
 }
+
+highlighter.dispose();
 
 await runFile(path.join(repo, "node_modules", ".bin", "tailwindcss"), [
   "-i", path.join(repo, "docs", "web", "input.css"),
