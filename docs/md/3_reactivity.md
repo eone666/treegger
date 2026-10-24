@@ -41,7 +41,7 @@ console.log(doubled.value); // 24
 doubled.dispose();
 ```
 
-The calculation runs when `.value` is read and recalculates after a dependency changes. Reading a computed value inside an effect or rendering binding subscribes that consumer to updates. Read-only computed values warn if assigned at runtime; their TypeScript `.value` property is read-only.
+Like a signal, a computed value has a `.value` property. Read it in ordinary JavaScript or inside an effect. The calculation runs when `.value` is read and recalculates after a dependency changes. Reading a computed value inside an effect or rendering binding subscribes that consumer to updates. Read-only computed values warn if assigned at runtime; their TypeScript `.value` property is read-only.
 
 A computed value can also define a setter:
 
@@ -84,13 +84,37 @@ An effect created inside a component or `scope` is stopped when that owner is di
 
 Insert a signal or computed value as a child for direct reactive text. Use a function for expressions that read reactive values:
 
+A function passed as a child or reactive prop creates a **local reactive binding**. Treegger runs it, tracks the signals and computed values it reads, and reruns it when those dependencies change. It is similar to an implicit computation for that one DOM location. Each binding runs its own function; it does not expose a reusable `.value` or cache a result for other locations. Use `computed()` when several places need to share one cached derived value.
+
 ```jsx
+<p>{count}</p>                            {/* updates */}
+<p>{count.value}</p>                      {/* snapshot; does not update */}
+<p>{() => `Count: ${count.value}`}</p>    {/* updates */}
+<p>{doubled}</p>                          {/* computed value updates */}
+<p>{doubled.value}</p>                    {/* snapshot; does not update */}
 <p>{count} × 2 = {() => count.value * 2}</p>
 ```
 
 ```js
+html`<p>${count}</p>`;                           // updates
+html`<p>${count.value}</p>`;                     // snapshot; does not update
+html`<p>${() => `Count: ${count.value}`}</p>`;   // updates
+html`<p>${doubled}</p>`;                         // computed value updates
+html`<p>${doubled.value}</p>`;                   // snapshot; does not update
 html`<p>${count} × 2 = ${() => count.value * 2}</p>`;
 ```
+
+Reading `.value` creates a subscription only while a reactive function runs, such as an effect, computed getter, or rendering function. JSX expressions and template interpolations are evaluated while constructing the tree, so passing their already-read values does not make them reactive.
+
+When `doubled` changes, each binding displaying it updates its own real DOM text node. Treegger does not recreate the parent element or rerun its component. If an expression returns different elements instead of text, Treegger replaces that branch.
+
+For conditional rendering, return a branch or `null` from the binding function:
+
+```jsx
+<section>{() => visible.value ? <Panel /> : null}</section>
+```
+
+The function reruns when `visible` changes. The mounted branch is disposed when it is replaced. Writing `{visible.value ? <Panel /> : null}` instead evaluates the condition only while constructing the tree.
 
 Reactive props work the same way: `class={ () => active.value ? "on" : "off" }` in JSX, or `class=${() => active.value ? "on" : "off"}` in an HTML template. A plain value is applied once.
 

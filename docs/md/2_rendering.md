@@ -16,6 +16,8 @@ const name = signal("Ada");
 mount(html`<p>Hello, ${name}</p>`, document.querySelector("#app"));
 ```
 
+Pass the signal itself to a text binding. `${name.value}` evaluates once while constructing the template and does not subscribe to later changes. For a derived value, pass a function such as `${() => name.value.toUpperCase()}`.
+
 Interpolations can contain text, numbers, nodes, Treegger trees, signals, computed values, functions, and arrays of children. A signal or computed value in child position updates its text when its value changes. A function in child position is evaluated reactively:
 
 ```js
@@ -51,6 +53,10 @@ import { mount, signal } from "treegger";
 const count = signal(0);
 mount(<button onClick={() => count.value++}>{count}</button>, document.querySelector("#app"));
 ```
+
+In JSX, `{count}` creates a reactive binding; `{count.value}` inserts only the current value. Use `{() => count.value * 2}` when the displayed value depends on a calculation. Reading `.value` inside an event handler is fine: the handler runs when the event occurs.
+
+Passing a function as a child or reactive prop makes a local reactive binding: Treegger tracks the values read during that function and reruns it when they change. See [Reactive rendering](3_reactivity.md) for how this differs from a reusable `computed()` value.
 
 JSX uses Treegger's automatic runtime exports `jsx`, `jsxs`, and `jsxDEV`. The transform imports these for you. JSX fragments work with `<>...</>` or `<Fragment>...</Fragment>`.
 

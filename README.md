@@ -47,6 +47,8 @@ mount(<button onClick={() => { count.value++; }}>Count: {count}</button>,
   document.getElementById("app")!);
 ```
 
+Pass the signal itself for reactive text: `{count}` in JSX or `${count}` in `html`. Reading `{count.value}` or `${count.value}` there captures a value once. Use a function such as `{() => count.value * 2}` for reactive expressions.
+
 Continue with the [Markdown documentation](docs/md/index.md) or the [documentation website](https://eone666.github.io/treegger/). Browse [examples/](examples/) for paired `html` and TSX snippets.
 
 ### Without a bundler

@@ -79,7 +79,7 @@ price.value = 12;
 console.log(doubled.value); // 24
 doubled.dispose();
 </code></pre>
-</div><p>The calculation runs when <code>.value</code> is read and recalculates after a dependency changes. Reading a computed value inside an effect or rendering binding subscribes that consumer to updates. Read-only computed values warn if assigned at runtime; their TypeScript <code>.value</code> property is read-only.</p>
+</div><p>Like a signal, a computed value has a <code>.value</code> property. Read it in ordinary JavaScript or inside an effect. The calculation runs when <code>.value</code> is read and recalculates after a dependency changes. Reading a computed value inside an effect or rendering binding subscribes that consumer to updates. Read-only computed values warn if assigned at runtime; their TypeScript <code>.value</code> property is read-only.</p>
 <p>A computed value can also define a setter:</p>
 <div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
     <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
@@ -113,15 +113,34 @@ request.stop();
 <p>An effect created inside a component or <code>scope</code> is stopped when that owner is disposed. An effect created outside a scope remains active until <code>stop()</code> is called.</p>
 <h2 id="reactive-rendering">Reactive rendering</h2>
 <p>Insert a signal or computed value as a child for direct reactive text. Use a function for expressions that read reactive values:</p>
+<p>A function passed as a child or reactive prop creates a <strong>local reactive binding</strong>. Treegger runs it, tracks the signals and computed values it reads, and reruns it when those dependencies change. It is similar to an implicit computation for that one DOM location. Each binding runs its own function; it does not expose a reusable <code>.value</code> or cache a result for other locations. Use <code>computed()</code> when several places need to share one cached derived value.</p>
 <div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
     <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
-    <pre><code class="language-jsx">&lt;p&gt;{count} × 2 = {() =&gt; count.value * 2}&lt;/p&gt;
+    <pre><code class="language-jsx">&lt;p&gt;{count}&lt;/p&gt;                            {/* updates */}
+&lt;p&gt;{count.value}&lt;/p&gt;                      {/* snapshot; does not update */}
+&lt;p&gt;{() =&gt; `Count: ${count.value}`}&lt;/p&gt;    {/* updates */}
+&lt;p&gt;{doubled}&lt;/p&gt;                          {/* computed value updates */}
+&lt;p&gt;{doubled.value}&lt;/p&gt;                    {/* snapshot; does not update */}
+&lt;p&gt;{count} × 2 = {() =&gt; count.value * 2}&lt;/p&gt;
 </code></pre>
 </div><div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
     <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
-    <pre><code class="language-js">html`&lt;p&gt;${count} × 2 = ${() =&gt; count.value * 2}&lt;/p&gt;`;
+    <pre><code class="language-js">html`&lt;p&gt;${count}&lt;/p&gt;`;                           // updates
+html`&lt;p&gt;${count.value}&lt;/p&gt;`;                     // snapshot; does not update
+html`&lt;p&gt;${() =&gt; `Count: ${count.value}`}&lt;/p&gt;`;   // updates
+html`&lt;p&gt;${doubled}&lt;/p&gt;`;                         // computed value updates
+html`&lt;p&gt;${doubled.value}&lt;/p&gt;`;                   // snapshot; does not update
+html`&lt;p&gt;${count} × 2 = ${() =&gt; count.value * 2}&lt;/p&gt;`;
 </code></pre>
-</div><p>Reactive props work the same way: <code>class={ () =&gt; active.value ? &quot;on&quot; : &quot;off&quot; }</code> in JSX, or <code>class=${() =&gt; active.value ? &quot;on&quot; : &quot;off&quot;}</code> in an HTML template. A plain value is applied once.</p>
+</div><p>Reading <code>.value</code> creates a subscription only while a reactive function runs, such as an effect, computed getter, or rendering function. JSX expressions and template interpolations are evaluated while constructing the tree, so passing their already-read values does not make them reactive.</p>
+<p>When <code>doubled</code> changes, each binding displaying it updates its own real DOM text node. Treegger does not recreate the parent element or rerun its component. If an expression returns different elements instead of text, Treegger replaces that branch.</p>
+<p>For conditional rendering, return a branch or <code>null</code> from the binding function:</p>
+<div class="relative my-6 [&>pre]:my-0 [&>pre]:pt-12">
+    <button type="button" data-copy-code class="absolute right-3 top-3 z-10 rounded-md border border-white/15 bg-[#1b2a22] px-2.5 py-1 text-xs font-medium text-slate-200 hover:border-brand/50 hover:text-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light" aria-label="Copy code">Copy</button>
+    <pre><code class="language-jsx">&lt;section&gt;{() =&gt; visible.value ? &lt;Panel /&gt; : null}&lt;/section&gt;
+</code></pre>
+</div><p>The function reruns when <code>visible</code> changes. The mounted branch is disposed when it is replaced. Writing <code>{visible.value ? &lt;Panel /&gt; : null}</code> instead evaluates the condition only while constructing the tree.</p>
+<p>Reactive props work the same way: <code>class={ () =&gt; active.value ? &quot;on&quot; : &quot;off&quot; }</code> in JSX, or <code>class=${() =&gt; active.value ? &quot;on&quot; : &quot;off&quot;}</code> in an HTML template. A plain value is applied once.</p>
 <p>For nested state, see <a href="stores.html">Stores</a>.</p>
 </main>
           <nav class="mt-16 grid gap-3 border-t border-white/10 pt-8 sm:grid-cols-2" aria-label="Adjacent pages"><a class="flex flex-col gap-1 rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-brand/35 hover:bg-brand/5" href="rendering.html"><span class="text-xs text-slate-500">← Previous</span><strong class="font-medium text-brand-light">Rendering</strong></a>
