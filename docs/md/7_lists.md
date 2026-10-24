@@ -32,4 +32,4 @@ When items are appended or reordered, Treegger reuses existing keyed DOM rows wh
 
 `null`, `undefined`, and an empty array show `fallback` when provided. Fallback content is disposed when rows appear and recreated if the list becomes empty again. The fallback can be a Treegger tree or a function returning one.
 
-For a complete add/remove example, see [todo-list.js](https://github.com/eone666/treegger/blob/main/examples/todo-list.js) and [todo-list.tsx](https://github.com/eone666/treegger/blob/main/examples/todo-list.tsx).
+For a complete add/remove example, see [todo-list.js](https://github.com/eone666/treegger/blob/master/examples/todo-list.js) and [todo-list.tsx](https://github.com/eone666/treegger/blob/master/examples/todo-list.tsx).

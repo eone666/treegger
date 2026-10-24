@@ -34,4 +34,4 @@ The child nodes, component instances, signal state, uncontrolled input values, a
 
 Use [conditional rendering](5_conditional-rendering.md) when a hidden branch should be disposed and its subscriptions stopped. That branch will start with fresh component state when shown again.
 
-See [preserve.js](https://github.com/eone666/treegger/blob/main/examples/preserve.js) and [preserve.tsx](https://github.com/eone666/treegger/blob/main/examples/preserve.tsx) for a draft that keeps the same `textarea` and its typed value across hide/show cycles.
+See [preserve.js](https://github.com/eone666/treegger/blob/master/examples/preserve.js) and [preserve.tsx](https://github.com/eone666/treegger/blob/master/examples/preserve.tsx) for a draft that keeps the same `textarea` and its typed value across hide/show cycles.

@@ -34,6 +34,6 @@ When switching away from a branch, Treegger removes its DOM nodes and disposes o
 
 Keep the reactive read **inside** the function. `visible.value ? <Editor /> : null` without an enclosing function evaluates once while the tree is constructed and does not subscribe the branch to later changes.
 
-See [conditional.js](https://github.com/eone666/treegger/blob/main/examples/conditional.js) and [conditional.tsx](https://github.com/eone666/treegger/blob/main/examples/conditional.tsx) for a toggle with an input ref and component cleanup. For collections, use [`Each`](7_lists.md) instead of building a conditional array of rows.
+See [conditional.js](https://github.com/eone666/treegger/blob/master/examples/conditional.js) and [conditional.tsx](https://github.com/eone666/treegger/blob/master/examples/conditional.tsx) for a toggle with an input ref and component cleanup. For collections, use [`Each`](7_lists.md) instead of building a conditional array of rows.
 
 If the hidden branch should keep its DOM and state, use [`Preserve`](6_preserve.md).

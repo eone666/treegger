@@ -33,4 +33,4 @@ The failing branch is disposed before the fallback is mounted. Errors thrown by 
 
 An event handler that returns a rejected native Promise is also reported to its boundary. Errors from unrelated browser callbacks or asynchronous work outside Treegger's handlers are outside the boundary's scope; handle those where they occur.
 
-See [error-boundary.js](https://github.com/eone666/treegger/blob/main/examples/error-boundary.js) and [error-boundary.tsx](https://github.com/eone666/treegger/blob/main/examples/error-boundary.tsx).
+See [error-boundary.js](https://github.com/eone666/treegger/blob/master/examples/error-boundary.js) and [error-boundary.tsx](https://github.com/eone666/treegger/blob/master/examples/error-boundary.tsx).

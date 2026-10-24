@@ -175,7 +175,7 @@ for (const [index, page] of rendered.entries()) {
       <footer class="border-t border-white/10 px-5 py-6 text-sm text-slate-500 sm:px-8 lg:px-12">
         <div class="mx-auto flex max-w-[1450px] flex-wrap items-center justify-between gap-3">
           <span class="font-semibold text-slate-300">Treegger</span>
-          <div class="flex flex-wrap items-center gap-5"><a class="hover:text-brand-light" href="https://github.com/eone666/treegger" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a><a class="hover:text-brand-light" href="https://github.com/eone666/treegger/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a></div>
+          <div class="flex flex-wrap items-center gap-5"><a class="hover:text-brand-light" href="https://github.com/eone666/treegger" target="_blank" rel="noopener noreferrer">GitHub repository ↗</a><a class="hover:text-brand-light" href="https://github.com/eone666/treegger/blob/master/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a></div>
         </div>
       </footer>
     </div>
