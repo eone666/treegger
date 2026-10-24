@@ -50,3 +50,16 @@ For a TypeScript consumer using JSX:
 The automatic JSX runtime resolves to `treegger/jsx-runtime` or `treegger/jsx-dev-runtime`. No explicit `createElement` import is required for JSX syntax.
 
 The [Code Guidelines](../AGENTS.md) require strict TypeScript, no `any`, and no double assertion through `unknown`. Run `npm run typecheck`, `npm run build:package`, and `npm test` before sharing a change.
+
+## Releases
+
+GitHub Actions runs typecheck and tests on pushes and pull requests. A pushed `v*` tag runs the same checks, builds the package, and creates a GitHub Release with `RELEASE_NOTES.md` as its body. The Release includes the minified browser module and an npm package tarball. It does not publish to npm.
+
+Before each release:
+
+1. Update the version in `package.json` and `package-lock.json`, for example with `npm version 0.2.0 --no-git-tag-version`.
+2. Replace the contents of `RELEASE_NOTES.md`. Its first line must be `# v0.2.0` for version `0.2.0`, followed by the release text.
+3. Run `npm run typecheck`, `npm test`, and `npm run build:package`. Commit and push these changes to the default branch.
+4. Tag that commit with the matching version and push the tag, for example `git tag v0.2.0` followed by `git push origin v0.2.0`.
+
+The release job checks that the tag matches the package version and the heading in `RELEASE_NOTES.md`. It runs only after typecheck and tests pass.
