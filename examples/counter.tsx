@@ -1,8 +1,8 @@
-import { computed, effect, mount, signal, type Reactive } from "treegger";
+import { derive, effect, mount, signal, type Reactive } from "treegger";
 
 function Counter({ label, initial = 0 }: { label: Reactive<string>; initial?: number }) {
   const count = signal(initial);
-  const doubled = computed(() => count.value * 2);
+  const doubled = derive(() => count.value * 2);
 
   effect(() => {
     const value = count.value;

@@ -2,67 +2,35 @@
 
 ![Treegger logo](assets/treegger-readme.svg)
 
-Treegger is a small reactive DOM library with signals, components, keyed lists, lifecycle hooks, HTML templates, and JSX. It has no runtime dependencies.
+Treegger is a **proof of concept** demonstrating how signals can update individual DOM bindings without a framework-specific compiler. It combines runtime dependency tracking, native DOM operations, HTML templates, and a standard JSX runtime.
 
-Treegger has no virtual DOM. Signals track reactive reads, and bindings update the affected DOM nodes directly.
+There is no virtual DOM or runtime dependency. HTML templates run as native JavaScript; JSX needs a standard syntax transform.
 
-The project's ideas and design decisions are the author's. The code was written with the help of Codex.
+## A small example
+
+Given `<div id="app"></div>`, this module renders a counter and its derived value:
+
+```js
+import { derive, html, mount, signal } from "treegger";
+
+const count = signal(0);
+const doubled = derive(() => count.value * 2);
+
+mount(html`
+  <button onClick=${() => count.value++}>Count: ${count}</button>
+  <p>Double: ${doubled}</p>
+`, document.getElementById("app"));
+```
+
+Pass `count` and `doubled` directly to markup for updates. Use `.value` inside `derive()` or `effect()` to track reads. Reading `.value` while constructing markup inserts a snapshot. Ordinary functions are callbacks, not reactive expressions.
 
 ## Getting started
 
-With Vite or another bundler, install Treegger:
-
-```sh
-npm install treegger
-```
-
-Add `<div id="app"></div>` to your page, then mount a counter:
-
-```js
-import { html, mount, signal } from "treegger";
-
-const count = signal(0);
-mount(html`<button onClick=${() => { count.value++; }}>Count: ${count}</button>`,
-  document.getElementById("app"));
-```
-
-For named components in HTML templates, register them with `html.with()`:
-
-```js
-const view = html.with({ Counter });
-view`<Counter initial=${0} /><Counter initial=${10} />`;
-```
-
-See [named components](docs/md/2_rendering.md#named-components-with-html-with) for a complete example.
-
-For TSX, set the automatic JSX runtime in your project's `tsconfig.json`:
-
-```json
-{
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "jsxImportSource": "treegger"
-  }
-}
-```
-
-Then write the same counter as:
-
-```tsx
-import { mount, signal } from "treegger";
-
-const count = signal(0);
-mount(<button onClick={() => { count.value++; }}>Count: {count}</button>,
-  document.getElementById("app")!);
-```
-
-Pass the signal itself for reactive text: `{count}` in JSX or `${count}` in `html`. Reading `{count.value}` or `${count.value}` there captures a value once. Wrap derived expressions in `computed`, such as `{computed(() => count.value * 2)}`. Plain functions are callbacks, not reactive values.
-
-Continue with the [Markdown documentation](docs/md/index.md) or the [documentation website](https://eone666.github.io/treegger/). Browse [examples/](examples/) for paired `html` and TSX snippets.
+Treegger is not published to npm yet. Build the checkout, then use the browser module or install the local package in your app.
 
 ### Without a bundler
 
-Copy `dist/treegger.browser.min.js` from the package to your site and map the package name to its URL with an import map:
+[Build the package](#build-the-package), copy `dist/treegger.browser.min.js` into your site, and save the module above as `main.js`. Put both files beside this HTML page:
 
 ```html
 <div id="app"></div>
@@ -73,42 +41,98 @@ Copy `dist/treegger.browser.min.js` from the package to your site and map the pa
     }
   }
 </script>
-<script type="module">
-  import { html, mount, signal } from "treegger";
-  const count = signal(0);
-  mount(html`<button onClick=${() => count.value++}>Count: ${count}</button>`,
-    document.getElementById("app"));
-</script>
+<script type="module" src="./main.js"></script>
 ```
 
-The minified browser file contains the whole library and needs no other package files. Define the import map before any module script that imports Treegger. It lets the same `from "treegger"` imports work without a bundler; adjust the mapped URL to match where you host the file. Use a bundler when you want unused exports removed.
+Serve the directory over HTTP. The import map must appear before scripts that import Treegger. The minified browser module contains the whole library and has no other runtime files to copy.
+
+### With JSX / TSX
+
+Build Treegger, then install the local checkout in your application. If your app and the `treegger` checkout are sibling directories, run this from your app:
+
+```sh
+npm install ../treegger
+```
+
+In a TypeScript application with a JSX transform, such as Vite, merge these settings into `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "treegger"
+  }
+}
+```
+
+The same example in TSX:
+
+```tsx
+import { derive, mount, signal } from "treegger";
+
+const count = signal(0);
+const doubled = derive(() => count.value * 2);
+
+mount(<>
+  <button onClick={() => count.value++}>Count: {count}</button>
+  <p>Double: {doubled}</p>
+</>, document.getElementById("app")!);
+```
+
+The transform imports Treegger's JSX runtime automatically. A bundler can remove unused exports from the package's ESM build.
+
+## Documentation
+
+Read the [Markdown documentation](docs/md/index.md), visit the [documentation website](https://eone666.github.io/treegger/), or browse paired [HTML and TSX examples](examples/). The website reflects the deployed revision; local documentation describes this checkout.
+
+The guides cover [named components with `html.with()`](docs/md/02_rendering.md#named-components), stores, keyed lists, conditional rendering, refs, effects, error boundaries, and preserving detached branches.
+
+## How is Treegger different from SolidJS?
+
+Both use fine-grained reactivity and direct DOM updates. Treegger performs template parsing and binding at runtime; Solid's main JSX path uses a framework-specific compiler. Treegger makes derived expressions explicit with `derive()`.
+
+| | Treegger | SolidJS |
+| --- | --- | --- |
+| Rendering | Runtime DOM factories | Compiler-optimized DOM operations for JSX |
+| JSX | Standard automatic JSX runtime | Solid-specific JSX compilation |
+| HTML templates | Built-in `html` and `html.with()` | Also available through a tagged-template runtime |
+| Without a build step | Native JavaScript with HTML templates | Available through the HTML template runtime |
+| Ecosystem | Small and experimental | Established framework and tooling |
+| SSR and hydration | Not supported | Supported |
+
+Solid documents its [JSX approach](https://docs.solidjs.com/concepts/understanding-jsx), [HTML template runtime](https://github.com/solidjs/solid/blob/main/packages/solid/html/README.md), and [hydration API](https://docs.solidjs.com/reference/rendering/hydrate).
+
+Treegger explores a small runtime for experiments and interactive elements in existing pages. Runtime parsing and binding do work that a framework compiler could optimize ahead of time; this is an architectural trade-off, not a performance claim.
+
+## Status and limitations
+
+This is an experimental proof of concept. There is no SSR or hydration, and JSX still needs a syntax transform. The repository contains code snippets, not a project scaffold or example app. APIs may change between minor releases while the project is in `0.x`.
 
 ## Build the package
+
+From a checkout:
 
 ```sh
 npm ci
 npm run package:build
 ```
 
-`package:build` runs separate Rolldown builds: tree-shakeable ESM modules for bundlers, a minified, single-file browser ESM bundle at `dist/treegger.browser.min.js`, and bundled `.d.ts` files via `rolldown-plugin-dts`. The package exports the ESM entry points from `dist/`.
+The output in `dist/` includes ESM modules for bundlers, a standalone minified browser module, and TypeScript declarations. See the [contributing guide](.github/CONTRIBUTING.md) for build details and development commands.
 
-## Development
+Build and preview the static documentation:
 
 ```sh
-npm run typecheck        # check source and JSX types without building
-npm run typecheck:watch  # check again when files change
-npm test                 # run runtime tests directly from src/
-npm run lint             # lint TypeScript and JavaScript with Oxlint
-npm run lint:fix         # apply available automatic fixes
+npm run docs:build
+npm run docs:preview
 ```
-
-Build the static documentation website from `docs/md/` with `npm run docs:build`. The generated pages are in `docs/web/dist/`. Run `npm run docs:preview` to preview that build with `serve` (port 3000 by default). To select a local address and port, use `npm run docs:preview -- --listen tcp://127.0.0.1:5192`.
 
 ## Contributing
 
-Issues and pull requests are welcome. Please keep the documentation up to date with any changes you make. If you change the Markdown documentation in `docs/md/`, run `npm run docs:build` to check that the static HTML site builds successfully.
+Issues and pull requests are welcome. Keep documentation current with behavior changes, and run `npm run docs:build` after editing `docs/md/`.
 
-See the [contributing guide](.github/CONTRIBUTING.md) for the repository layout, JSX configuration, and checks. For visual changes, follow the [design guidelines](.github/DESIGN_GUIDELINES.md).
+See the [contributing guide](.github/CONTRIBUTING.md) and [design guidelines](.github/DESIGN_GUIDELINES.md).
+
+The project's ideas and design decisions are the author's. The code was written with the help of Codex.
 
 ## License
 

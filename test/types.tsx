@@ -1,6 +1,6 @@
 import {
-  Each, ErrorBoundary, Preserve, computed, createElement, debug, effect, Fragment, html, mount,
-  onUnmount, ref, scope, signal, store, type Reactive, type Component, type Store, type TreeggerElement, type TreeggerNode
+  Each, ErrorBoundary, Preserve, computed, derive, createElement, debug, effect, Fragment, html, mount,
+  onUnmount, ref, scope, signal, store, type Reactive, type Computed, type WritableComputed, type Derived, type WritableDerived, type Component, type Store, type TreeggerElement, type TreeggerNode
 } from 'treegger';
 
 type MyComponent = () => TreeggerElement;
@@ -147,3 +147,27 @@ const invalidReactiveEvent = <button onClick={signal(42)} />;
 // @ts-expect-error keyboard callbacks cannot handle mouse events
 const invalidEventKind = <button onClick={signal((event: KeyboardEvent) => { void event.key; })} />;
 void [reactiveEventProps, invalidReactiveEvent, invalidEventKind];
+
+const derivedNumber: Derived<number> = derive(() => count.value * 2);
+const derivedWithOptions = derive(() => ({ id: count.value }), { equals: (previous, next) => previous.id === next.id });
+const alwaysDerived = derive(() => count.value, { equals: false });
+const writableDerived: WritableDerived<number> = derive({ get: () => count.value, set: (next: number) => { count.value = next; } }, { equals: Object.is });
+writableDerived.value = 3;
+const storedDerive = store({ derivedNumber, writableDerived });
+const storedNumber: number = storedDerive.derivedNumber;
+storedDerive.writableDerived = 5;
+// @ts-expect-error derived values are read-only unless a setter is supplied
+derivedNumber.value = 3;
+// @ts-expect-error invalid equality option
+derive(() => 1, { equals: true });
+// @ts-expect-error comparators must return a boolean
+derive(() => 1, { equals: () => 1 });
+const derivedView = <><p>{derivedNumber}</p><button onClick={derive(() => () => {})} /></>;
+void [derivedWithOptions, alwaysDerived, writableDerived, storedNumber, derivedView];
+
+// Deprecated type names remain compatible with the primary types.
+const legacyDerived: Computed<number> = derivedNumber;
+const legacyWritableDerived: WritableComputed<number> = writableDerived;
+const currentDerived: Derived<number> = legacyDerived;
+const currentWritableDerived: WritableDerived<number> = legacyWritableDerived;
+void [currentDerived, currentWritableDerived];

@@ -1,12 +1,12 @@
 import { effect as runEffect, onUnmount, scope as runScope } from "./core";
-import { signal as createSignal, store as createStore, computed as createComputed } from "./signals";
+import { signal as createSignal, store as createStore, derive as createDerived } from "./signals";
 import {
   ref as createRef, Each as each, createElement as element,
   Fragment, ErrorBoundary, Preserve as preserve, component as makeComponent, debug as wrapDebug, mount as mountTree
 } from "./render";
 import { html as template, jsx as createJsx, jsxs, jsxDEV } from "./template";
 import type {
-  Signal, Computed, WritableComputed, Store, EffectHandle, ScopeHandle,
+  Signal, Store, EffectHandle, ScopeHandle,
   DomRef, Child, Tree, ListTree, DebugTree, DebugOptions, Component, ElementProps, Key, EachProps, PreserveProps
 } from "./types";
 
@@ -15,11 +15,10 @@ export { onUnmount, Fragment, ErrorBoundary, jsxs, jsxDEV };
 export const Preserve = preserve as (props: PreserveProps) => Tree;
 
 export const signal = createSignal as <T>(initial: T) => Signal<T>;
-export function computed<T>(get: () => T): Computed<T>;
-export function computed<T>(options: { get: () => T; set: (next: T) => void }): WritableComputed<T>;
-export function computed<T>(options: (() => T) | { get: () => T; set: (next: T) => void }): Computed<T> | WritableComputed<T> {
-  return typeof options === "function" ? createComputed(options) : createComputed(options);
-}
+/** Create a lazy, cached derived value with optional result equality. */
+export const derive = createDerived;
+/** @deprecated Use derive() instead. */
+export const computed = derive;
 export const store = createStore as <T extends object>(initial: T) => Store<T>;
 export const effect = runEffect as (run: () => void | (() => void)) => EffectHandle;
 export const scope = runScope as <T>(run: () => T) => { value: T; owner: ScopeHandle };

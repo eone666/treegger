@@ -41,11 +41,11 @@ function KeyListener() {
 }
 ```
 
-`onUnmount` throws if there is no active component or scope. It also cannot be called from inside an effect. For per-run cleanup, return a function from the [effect](3_reactivity.md#effects-and-cleanup) instead.
+`onUnmount` throws if there is no active component or scope. It also cannot be called from inside an effect. For per-run cleanup, return a function from the [effect](03_reactivity.md#effects-and-cleanup) instead.
 
 ## Explicit scopes
 
-`scope(run)` groups effects, computed values, nested scopes, and `onUnmount` callbacks created while `run` executes:
+`scope(run)` groups effects, derived values, nested scopes, and `onUnmount` callbacks created while `run` executes:
 
 ```js
 import { effect, onUnmount, scope, signal } from "treegger";
@@ -70,5 +70,5 @@ group.owner.dispose();
 | A DOM event handler passed as an element prop | Treegger removes it with the element |
 | A browser subscription created once in a component | `onUnmount(() => unsubscribe())` |
 | Work recreated when reactive dependencies change | Return cleanup from `effect()` |
-| A standalone effect or computed value | Call `stop()` or `dispose()` |
+| A standalone effect or derived value | Call `stop()` or `dispose()` |
 | An entire mounted tree | Call the function returned by `mount()` |

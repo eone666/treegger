@@ -1,45 +1,30 @@
-# v0.2.0
+# v0.3.0
 
-Explicit reactive values, named HTML components, reactive event handlers, and rendering fixes.
+Explicit derivations with configurable result equality, updated public types, and clearer documentation.
 
-## Breaking changes
+## Reactive API
 
-- Plain functions no longer create reactive children, DOM props, `Preserve` conditions, or `Each` sources and fallbacks. Use a signal or an explicit `computed(() => ...)` instead. Event callbacks, refs, component functions, row render callbacks, and error-boundary fallbacks remain functions.
-- `Reactive<T>` is now `Signal<T> | Computed<T>`. Read either through `.value`. `MaybeReactive<T>` also accepts a static value for DOM props and control inputs.
-- `Preserve` detaches its branch from the document instead of hiding it with CSS. Component state, effects, refs, and DOM nodes survive until the branch is disposed.
-- Build commands use module-first names: `package:build` and `docs:build` replace `build:package` and `build:docs`.
-
-## New features
-
-- `html.with({ Counter })` creates a scoped template tag supporting `<Counter />`. Registries can be extended without changing the original tag, and built-in components remain available.
-- DOM event props accept callbacks, signals, or computed values. Reactive handlers are read at dispatch without replacing the DOM listener; nullish values disable handling. Selection errors and callback failures use `ErrorBoundary`.
-- `EventProp<E>` describes static or reactive event props; `EventHandler<E>` remains the plain callback type.
-- Computed children support conditional JSX and HTML branches, fragments, arrays, lists, nested reactive values, and native DOM nodes. Unchanged computed results preserve existing DOM and cleanup state.
-
-## Fixes
-
-- Preserve SVG namespaces, case-sensitive names, and attributes through components and reactive branches.
-- Move and remove complete keyed component fragments, including roots that change after mounting.
-- Keep HTML template prop casing and boolean component props consistent with JSX.
-- Serialize boolean ARIA, data, and enumerated attributes correctly, and apply initial select values after mounting options.
-- Preserve built-in values in stores and support reactive object getters and setters through `this`.
-- Improve cleanup and computed error handling, dependency tracking, and disposal behavior.
+- Add `derive()` as the primary API for lazy, cached derived values, including writable derivations.
+- Add `Derived<T>` and `WritableDerived<T>` as the primary public types. `Reactive<T>` now uses `Signal<T> | Derived<T>`.
+- Keep `computed()`, `Computed<T>`, and `WritableComputed<T>` as deprecated compatibility aliases. Existing code remains supported.
+- Add `DeriveOptions<T>` and `Equality<T>`. Equality defaults to `Object.is`; custom comparators retain the previous cached value when equal. `equals: false` notifies consumers after every actual reevaluation.
+- Keep equality comparisons outside dependency tracking. Lazy evaluation, caching, ownership, and disposal remain unchanged.
 
 ## Documentation and tooling
 
-- Update guides and paired HTML/TSX examples for explicit computed values, scoped templates, reactive events, stores, and detached branches.
-- Add Shiki syntax highlighting, language labels, and code copying to static documentation, with self-hosted Onest and Iosevka fonts and improved contrast and spacing.
-- Add Oxlint to push and pull-request checks alongside type checking and tests. The test suite includes real DOM coverage with jsdom.
-- Add `docs:preview` using `serve`; GitHub Pages builds the documentation from source.
+- Update guides and HTML/TSX examples to use `derive()` and the new type names.
+- Restructure the README around a working example, setup instructions, proof-of-concept status, and a comparison with Solid.
+- Clarify local package installation and standalone browser usage with an import map.
+- Use two-digit documentation filename prefixes and update navigation and links.
+- Fix Markdown table formatting and validate table row widths during documentation builds.
+- Consolidate contributor guidelines in `.github/`, including the tag-based release workflow.
 
-## Migration example
+## Migration
 
-```tsx
-// Before
-<span>{() => count.value * 2}</span>
+```ts
+import { derive, type Derived } from "treegger";
 
-// After
-<span>{computed(() => count.value * 2)}</span>
+const doubled: Derived<number> = derive(() => count.value * 2);
 ```
 
-Pass signals and computed objects directly to reactive bindings. Reading `.value` while constructing a tree captures a snapshot; read it inside `computed` or `effect` when tracking is needed.
+Replace `computed` with `derive`, `Computed` with `Derived`, and `WritableComputed` with `WritableDerived` when convenient. The old names still work.

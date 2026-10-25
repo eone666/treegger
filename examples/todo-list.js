@@ -1,4 +1,4 @@
-import { computed, html, mount, ref, signal } from "treegger";
+import { derive, html, mount, ref, signal } from "treegger";
 
 const todos = signal([]);
 const input = ref();
@@ -17,7 +17,7 @@ mount(html`
     <input ref=${input} placeholder="New todo">
     <button>Add</button>
   </form>
-  <ul><Each items=${todos} fallback=${computed(() => html`<li>No todos yet</li>`)}>
+  <ul><Each items=${todos} fallback=${derive(() => html`<li>No todos yet</li>`)}>
     ${todo => html`<li key=${todo.id}>
       ${todo.title}
       <button onClick=${() => { todos.value = todos.value.filter(item => item.id !== todo.id); }}>Remove</button>

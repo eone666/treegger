@@ -26,18 +26,46 @@ function slugify(value) {
   return value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "section";
 }
 
+function tableCellCount(line) {
+  const cells = [""];
+  for (let index = 0; index < line.length; index++) {
+    const char = line[index];
+    if (char === "\\" && index + 1 < line.length) cells[cells.length - 1] += char + line[++index];
+    else if (char === "|") cells.push("");
+    else cells[cells.length - 1] += char;
+  }
+  if (cells[0].trim() === "") cells.shift();
+  if (cells.at(-1)?.trim() === "") cells.pop();
+  return cells.length;
+}
+
+function validateTables(tokens, source, text) {
+  const lines = text.split(/\r?\n/);
+  for (const token of tokens) {
+    if (token.type !== "table_open" || !token.map) continue;
+    const [start, end] = token.map;
+    const expected = tableCellCount(lines[start]);
+    for (let index = start + 2; index < end; index++) {
+      const actual = tableCellCount(lines[index]);
+      if (actual !== expected) {
+        throw new Error(`${source}:${index + 1}: table row has ${actual} cells; expected ${expected}. Escape literal | characters as \\|, including inside code.`);
+      }
+    }
+  }
+}
+
 const files = (await readdir(markdownDir)).filter(file => file.endsWith(".md"));
 if (!files.includes("index.md")) throw new Error("docs/md/index.md is required");
 const pages = files.map(file => {
   if (file === "index.md") return { file, slug: "index", output: "index.html", position: 0 };
-  const match = /^([1-9]\d*)_([a-z0-9][a-z0-9-]*)\.md$/.exec(file);
-  if (!match) throw new Error(`Documentation file needs a numeric prefix: ${file}`);
+  const match = /^((?:0[1-9]|[1-9]\d))_([a-z0-9][a-z0-9-]*)\.md$/.exec(file);
+  if (!match) throw new Error(`Documentation file needs a two-digit prefix from 01_ to 99_: ${file}`);
   return { file, slug: match[2], output: `${match[2]}.html`, position: Number(match[1]) };
 }).sort((a, b) => a.position - b.position);
 if (new Set(pages.map(page => page.position)).size !== pages.length ||
     new Set(pages.map(page => page.output)).size !== pages.length ||
     pages.some((page, index) => page.position !== index)) {
-  throw new Error("Documentation prefixes must be unique and consecutive, starting at 1");
+  throw new Error("Documentation prefixes must be unique and consecutive, starting at 01_");
 }
 const pageBySource = new Map(pages.map(page => [path.join(markdownDir, page.file), page]));
 
@@ -145,7 +173,9 @@ for (const page of pages) {
     if (href) token.attrSet("href", rewriteLink(href, source, linkedSources));
     return self.renderToken(tokens, index, options);
   };
-  const content = markdown.render(markdownText);
+  const tokens = markdown.parse(markdownText, {});
+  validateTables(tokens, source, markdownText);
+  const content = markdown.renderer.render(tokens, markdown.options, {});
   for (const linkedSource of linkedSources) await copyLinkedSource(linkedSource);
   const title = headings.find(heading => heading.level === 1)?.title ?? slug;
   rendered.push({

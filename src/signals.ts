@@ -1,6 +1,6 @@
 import { activeEffect, activeScope, schedule, setActiveEffect, trackDependency, dependenciesChanged, untrack, type Job, type Dependency } from "./core";
 import { writableComputedBrand } from "./types";
-import type { Computed, WritableComputed } from "./types";
+import type { Derived, WritableDerived, DeriveOptions } from "./types";
 
   // ---------- Signals ----------
 
@@ -8,7 +8,7 @@ import type { Computed, WritableComputed } from "./types";
   const COMPUTED = Symbol("treegger.computed");
   const DOM_REF = Symbol("treegger.dom-ref");
 
-  function warnReadonlyComputed() {
+  function warnReadonlyDerived() {
     console.warn("Cannot assign to a read-only computed value");
   }
 
@@ -131,13 +131,17 @@ import type { Computed, WritableComputed } from "./types";
     return wrap(initial);
   }
 
-  function computed<T>(calculate: () => T): Computed<T>;
-  function computed<T>(calculate: { get: () => T; set: (next: T) => void }): WritableComputed<T>;
-  function computed<T>(calculate: (() => T) | { get: () => T; set?: (next: T) => void }): Computed<T> | WritableComputed<T> {
+  function derive<T>(calculate: () => T, options?: DeriveOptions<T>): Derived<T>;
+  function derive<T>(calculate: { get: () => T; set: (next: T) => void }, options?: DeriveOptions<T>): WritableDerived<T>;
+  function derive<T>(calculate: (() => T) | { get: () => T; set?: (next: T) => void }, options: DeriveOptions<T> = {}): Derived<T> | WritableDerived<T> {
     const getter = typeof calculate === "function" ? calculate : calculate?.get;
     const setter = typeof calculate === "function" ? null : calculate?.set;
     if (typeof getter !== "function" || (setter != null && typeof setter !== "function")) {
-      throw new TypeError("computed expects a function or an object with get and optional set functions");
+      throw new TypeError("derive/computed expects a function or an object with get and optional set functions");
+    }
+    const equals = options.equals === undefined ? Object.is : options.equals;
+    if (equals !== false && typeof equals !== "function") {
+      throw new TypeError("derive equals must be false or a comparison function");
     }
     let value!: T;
     let dirty = true;
@@ -169,7 +173,7 @@ import type { Computed, WritableComputed } from "./types";
     if (owner) (owner.effects ??= new Set()).add(job);
 
     function refresh() {
-      if (calculating) throw new Error("computed cannot depend on itself");
+      if (calculating) throw new Error("derive/computed cannot depend on itself");
       if (!dirty) return;
       calculating = true;
       const previousEffect = activeEffect;
@@ -182,8 +186,10 @@ import type { Computed, WritableComputed } from "./types";
         job.deps.clear();
         setActiveEffect(job);
         const next = getter();
-        if (!initialized || !Object.is(value, next)) subscribers.version++;
-        value = next;
+        if (!initialized || equals === false || !untrack(() => equals(value, next))) {
+          subscribers.version++;
+          value = next;
+        }
         initialized = true;
         failed = false;
         dirty = false;
@@ -206,12 +212,15 @@ import type { Computed, WritableComputed } from "./types";
       },
       set value(next) {
         if (setter) setter(next);
-        else warnReadonlyComputed();
+        else warnReadonlyDerived();
       },
       dispose: () => job.stop()
     };
     return setter ? Object.assign(result, { [writableComputedBrand]: true as const }) : result;
   }
+
+  /** @deprecated Use derive() instead. */
+  const computed = derive;
 
   function isSignal(value: unknown): value is { value: unknown } {
     return value != null && typeof value === "object" && SIGNAL in value && value[SIGNAL] === true;
@@ -219,9 +228,9 @@ import type { Computed, WritableComputed } from "./types";
 
   function resolve(value: unknown): unknown {
     if (isSignal(value)) return value.value;
-    if (typeof value === "function") throw new TypeError("Reactive functions are unsupported; wrap the expression in computed()");
+    if (typeof value === "function") throw new TypeError("Reactive functions are unsupported; wrap the expression in derive()");
     return value;
   }
 
 
-export { SIGNAL, DOM_REF, signal, store, computed, isSignal, resolve };
+export { SIGNAL, DOM_REF, signal, store, derive, computed, isSignal, resolve };

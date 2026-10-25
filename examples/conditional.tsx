@@ -1,4 +1,4 @@
-import { computed, mount, onUnmount, ref, signal } from "treegger";
+import { derive, mount, onUnmount, ref, signal } from "treegger";
 
 const visible = signal(true);
 const input = ref<HTMLInputElement>();
@@ -10,9 +10,9 @@ function Editor() {
 
 mount(<>
   <button onClick={() => { visible.value = !visible.value; }}>
-    {computed(() => visible.value ? "Hide editor" : "Show editor")}
+    {derive(() => visible.value ? "Hide editor" : "Show editor")}
   </button>
-  {computed(() => visible.value
+  {derive(() => visible.value
     ? <Editor />
     : <p>Editor is hidden</p>)}
 </>, document.getElementById("app")!);

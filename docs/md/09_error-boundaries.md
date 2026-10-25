@@ -31,6 +31,6 @@ const view = html`
 
 The failing branch is disposed before the fallback is mounted. Errors thrown by a fallback can reach an outer boundary. If there is no boundary, they propagate as errors.
 
-Event handlers supplied directly or through a signal/computed source use the same error boundary. Errors thrown while selecting a reactive handler, an invalid selected value, synchronous callback errors, and rejected native Promises are reported to that boundary. Errors from unrelated browser callbacks or asynchronous work outside Treegger's handlers are outside the boundary's scope; handle those where they occur.
+Event handlers supplied directly or through a signal or derived source use the same error boundary. Errors thrown while selecting a reactive handler, an invalid selected value, synchronous callback errors, and rejected native Promises are reported to that boundary. Errors from unrelated browser callbacks or asynchronous work outside Treegger's handlers are outside the boundary's scope; handle those where they occur.
 
 See [error-boundary.js](https://github.com/eone666/treegger/blob/master/examples/error-boundary.js) and [error-boundary.tsx](https://github.com/eone666/treegger/blob/master/examples/error-boundary.tsx).

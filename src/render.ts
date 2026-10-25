@@ -267,7 +267,7 @@ import { activeNamespace, SVG_NAMESPACE, svgTagNames, svgAttributeNames, withNam
     }
 
     if (typeof child === "function") {
-      throw new TypeError("Function children are unsupported; wrap reactive expressions in computed()");
+      throw new TypeError("Function children are unsupported; wrap reactive expressions in derive()");
     }
 
     if (isSignal(child)) {

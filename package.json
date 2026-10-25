@@ -1,6 +1,6 @@
 {
   "name": "treegger",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A small reactive DOM library with HTML templates and JSX",
   "license": "MIT",
   "type": "module",

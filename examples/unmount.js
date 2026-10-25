@@ -1,4 +1,4 @@
-import { computed, component, html, mount, onUnmount, signal } from "treegger";
+import { derive, component, html, mount, onUnmount, signal } from "treegger";
 
 const visible = signal(true);
 
@@ -14,7 +14,7 @@ function KeyListener() {
 
 mount(html`
   <button onClick=${() => { visible.value = !visible.value; }}>
-    ${computed(() => visible.value ? "Stop listening" : "Start listening")}
+    ${derive(() => visible.value ? "Stop listening" : "Start listening")}
   </button>
-  ${computed(() => visible.value ? component(KeyListener) : null)}
+  ${derive(() => visible.value ? component(KeyListener) : null)}
 `, document.querySelector("#app"));

@@ -1,4 +1,4 @@
-import { computed, html, mount, onUnmount, ref, signal } from "treegger";
+import { derive, html, mount, onUnmount, ref, signal } from "treegger";
 
 const visible = signal(true);
 const draft = ref();
@@ -10,7 +10,7 @@ function Draft() {
 
 mount(html`
   <button onClick=${() => { visible.value = !visible.value; }}>
-    ${computed(() => visible.value ? "Hide draft" : "Show draft")}
+    ${derive(() => visible.value ? "Hide draft" : "Show draft")}
   </button>
   <Preserve when=${visible}><${Draft} /></Preserve>
 `, document.querySelector("#app"));

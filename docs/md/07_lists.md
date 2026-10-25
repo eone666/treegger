@@ -1,6 +1,6 @@
 # Lists
 
-`Each` renders a collection with keyed rows. Its `items` prop accepts an array, a signal or computed value containing an array, or a nullish value. Use `computed(() => ...)` for a derived array; plain getter functions are rejected. The child is a render function.
+`Each` renders a collection with keyed rows. Its `items` prop accepts an array, a signal or derived value containing an array, or a nullish value. Use `derive(() => ...)` for a derived array; plain getter functions are rejected. The child is a render function.
 
 ```jsx
 import { Each, signal } from "treegger";
@@ -45,6 +45,6 @@ const view = <ul>
 
 When items are appended or reordered, Treegger reuses existing keyed DOM rows where possible. Removing a row disposes its effects, event listeners, refs, and lifecycle cleanups. If a row's content depends on a changed item object, supply a new item and key as appropriate; the list's reuse rules are based on row identity and key.
 
-`null`, `undefined`, and an empty array show `fallback` when provided. Fallback content is disposed when rows appear and recreated if the list becomes empty again. The fallback can be a Treegger child, signal, or computed value. Use an explicit computed value for reactive fallback content; a plain fallback function is unsupported. The row render callback remains a function.
+`null`, `undefined`, and an empty array show `fallback` when provided. Fallback content is disposed when rows appear and recreated if the list becomes empty again. The fallback can be a Treegger child, signal, or derived value. Use an explicit derived value for reactive fallback content; a plain fallback function is unsupported. The row render callback remains a function.
 
 For a complete add/remove example, see [todo-list.js](https://github.com/eone666/treegger/blob/master/examples/todo-list.js) and [todo-list.tsx](https://github.com/eone666/treegger/blob/master/examples/todo-list.tsx).

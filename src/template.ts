@@ -1,5 +1,5 @@
 import { Fragment, ErrorBoundary, Preserve, Each, fragment, errorBoundary, component, createElement, isFactory } from "./render";
-import { resolve, computed } from "./signals";
+import { resolve, derive } from "./signals";
 import type { Key, ErrorBoundaryProps, HtmlTemplate, HtmlComponentRegistry } from "./types";
 
   // ---------- Template and JSX factories ----------
@@ -175,7 +175,7 @@ import type { Key, ErrorBoundaryProps, HtmlTemplate, HtmlComponentRegistry } fro
           ? ""
           : pieces.length === 1
           ? pieces[0]
-          : computed(() => pieces.map(piece => String(resolve(piece) ?? "")).join(""));
+          : derive(() => pieces.map(piece => String(resolve(piece) ?? "")).join(""));
       }
 
       const children: unknown[] = Array.from(node.childNodes).flatMap(convert);

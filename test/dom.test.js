@@ -2,7 +2,7 @@
 
 import { afterEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import { computed, effect, Each, ErrorBoundary, Fragment, html, jsx, onUnmount, Preserve, ref, signal } from '../src/index.ts';
+import { computed, derive, effect, Each, ErrorBoundary, Fragment, html, jsx, onUnmount, Preserve, ref, signal } from '../src/index.ts';
 import { cleanupDocument, mountInDocument, nextFlush, queryTexts } from './helpers.js';
 
 afterEach(cleanupDocument);
@@ -522,4 +522,83 @@ test('ErrorBoundary handles callback selection errors, invalid resolved handlers
     unmount();
     if ('dispose' in source) source.dispose();
   }
+});
+
+test('derive updates HTML and JSX text in place while sharing one cached result', async () => {
+  const source = signal(1);
+  let calculations = 0;
+  const label = derive(() => { calculations++; return `Count: ${source.value}`; });
+  const hosts = [html`<p>${label}</p>`, jsx('p', { children: label })].map(tree => mountInDocument(tree));
+  const texts = hosts.map(({ target }) => target.querySelector('p').firstChild);
+  assert.equal(calculations, 1);
+  source.value = 2;
+  await nextFlush();
+  assert.equal(calculations, 2);
+  for (const [index, { target, unmount }] of hosts.entries()) {
+    assert.equal(target.querySelector('p').firstChild, texts[index]);
+    assert.equal(texts[index].textContent, 'Count: 2');
+    unmount();
+    assert.equal(target.childNodes.length, 0);
+  }
+  label.dispose();
+});
+
+test('custom derive equality preserves the cached factory, DOM nodes and component lifecycle', async () => {
+  const source = signal(0);
+  let mounts = 0, cleanups = 0;
+  const input = ref();
+  function Editor() {
+    mounts++;
+    onUnmount(() => cleanups++);
+    return html`<input ref=${input} />`;
+  }
+  const branch = derive(() => Object.assign(jsx(Editor, {}), { group: Math.floor(source.value / 10) }), {
+    equals: (previous, next) => previous.group === next.group
+  });
+  const { target, unmount } = mountInDocument(html`<section>${branch}</section>`);
+  const originalFactory = branch.value;
+  const original = input.element;
+  original.value = 'draft';
+  source.value = 1;
+  await nextFlush();
+  assert.equal(branch.value, originalFactory);
+  assert.equal(input.element, original);
+  assert.equal(original.value, 'draft');
+  assert.equal(mounts, 1);
+  assert.equal(cleanups, 0);
+  source.value = 10;
+  await nextFlush();
+  assert.notEqual(input.element, original);
+  assert.equal(mounts, 2);
+  assert.equal(cleanups, 1);
+  unmount();
+  assert.equal(input.element, null);
+  assert.equal(target.childNodes.length, 0);
+  assert.equal(cleanups, 2);
+  branch.dispose();
+});
+
+test('equals false remounts a stable factory only after an actual reevaluation', async () => {
+  const source = signal(0);
+  let mounts = 0, cleanups = 0;
+  function Editor() {
+    mounts++;
+    onUnmount(() => cleanups++);
+    return jsx('input', {});
+  }
+  const tree = jsx(Editor, {});
+  const branch = derive(() => { void source.value; return tree; }, { equals: false });
+  const { target, unmount } = mountInDocument(jsx('section', { children: branch }));
+  const first = target.querySelector('input');
+  assert.equal(branch.value, tree);
+  assert.equal(branch.value, tree);
+  assert.equal(mounts, 1);
+  source.value++;
+  await nextFlush();
+  assert.notEqual(target.querySelector('input'), first);
+  assert.equal(mounts, 2);
+  assert.equal(cleanups, 1);
+  unmount();
+  assert.equal(cleanups, 2);
+  branch.dispose();
 });
